@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ceccc00981a4a44bb12cdaa8339d16c, type: 3}
+  m_Name: CommonMagicStone
+  m_EditorClassIdentifier: Assembly-CSharp::CardData
+  Name: "\uC791\uC740 \uB9C8\uC11D"
+  Description: "뽑은 카드에 10% 점수 보너스"
+  Rare: 0
+  Image: {fileID: 2800000, guid: ecff40fa2bd40a044be821f4d3701e45, type: 3}
+  DeckAbilities:
+  - Trigger: 6
+    Effect: 1
+    Score: 0
+    PercentBonus: 10
+    NumberMultiplier: 0
+    PackCardCount: 0
+    Description: "뽑은 카드에 10% 점수 보너스"

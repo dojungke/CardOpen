@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ceccc00981a4a44bb12cdaa8339d16c, type: 3}
+  m_Name: 2Li
+  m_EditorClassIdentifier: Assembly-CSharp::CardData
+  Name: "\uC774\uB9AC"
+  Description: "\uC790\uC2E0\uACFC \uAC19\uC740 \uC0C9\uC758 \uCE74\uB4DC\uAC00 \uB098\uC62C \uC2DC 100\uC810 \uD68D\uB4DD"
+  Rare: 0
+  Image: {fileID: 2800000, guid: 26305f4beb07bed4999431c95f9ba8dc, type: 3}
+  DeckAbilities:
+  - Trigger: 1
+    Effect: 0
+    Score: 100
+    PercentBonus: 0
+    Description: "\uC790\uC2E0\uACFC \uAC19\uC740 \uC0C9\uC758 \uCE74\uB4DC\uAC00 \uB098\uC62C \uC2DC 100\uC810 \uD68D\uB4DD"
+  Number: 1
+  Color: 4
