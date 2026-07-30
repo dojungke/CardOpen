@@ -1,4 +1,9 @@
 mergeInto(LibraryManager.library, {
+  CardOpenReportReady: function () {
+    window.cardOpenGameReady = true;
+    window.dispatchEvent(new Event('cardopen-ready'));
+  },
+
   CardOpenShareResult: function (titlePtr, textPtr, urlPtr) {
     var title = UTF8ToString(titlePtr);
     var text = UTF8ToString(textPtr);

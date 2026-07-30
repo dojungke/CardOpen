@@ -78,6 +78,7 @@ namespace CardOpen.Editor
 
             const string canvasMarker = "      var canvas = document.querySelector(\"#unity-canvas\");";
             const string diagnosticsScript =
+                "      window.cardOpenGameReady = false;\n" +
                 "      var diagnostics = document.querySelector(\"#cardopen-diagnostics\");\n" +
                 "      function showDiagnostic(message) {\n" +
                 "        diagnostics.style.display = \"block\";\n" +
@@ -87,6 +88,19 @@ namespace CardOpen.Editor
                 "      window.addEventListener(\"unhandledrejection\", function(event) { showDiagnostic(event.reason); });\n\n";
             if (!html.Contains("function showDiagnostic"))
                 html = html.Replace(canvasMarker, diagnosticsScript + canvasMarker);
+
+            const string configMarker = "        showBanner: unityShowBanner,";
+            const string configDiagnostics =
+                "\n        printErr: function(message) { console.error(message); showDiagnostic(\"Unity error: \" + message); }," +
+                "\n        errorHandler: function(error, url, line) { showDiagnostic(\"Unity runtime error: \" + error); return true; },";
+            if (!html.Contains("printErr: function(message)"))
+                html = html.Replace(configMarker, configMarker + configDiagnostics);
+
+            const string loadedMarker = "                document.querySelector(\"#unity-loading-bar\").style.display = \"none\";";
+            const string readyTimeout =
+                "\n                setTimeout(function() { if (!window.cardOpenGameReady) showDiagnostic(\"Unity loaded, but game initialization did not complete.\"); }, 8000);";
+            if (!html.Contains("game initialization did not complete"))
+                html = html.Replace(loadedMarker, loadedMarker + readyTimeout);
 
             html = html.Replace(
                 "                alert(message);",

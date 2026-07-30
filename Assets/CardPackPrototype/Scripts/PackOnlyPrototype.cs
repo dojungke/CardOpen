@@ -227,6 +227,8 @@ namespace CardOpen.Prototype
 #if UNITY_WEBGL && !UNITY_EDITOR
         [DllImport("__Internal")]
         private static extern void CardOpenShareResult(string title, string text, string url);
+        [DllImport("__Internal")]
+        private static extern void CardOpenReportReady();
 #endif
 
         private void Awake()
@@ -235,6 +237,9 @@ namespace CardOpen.Prototype
             SetupScene();
             StartNewRun();
             TryLoadSharedResultFromUrl();
+#if UNITY_WEBGL && !UNITY_EDITOR
+            CardOpenReportReady();
+#endif
         }
 
         private bool IsEnglishUi { get { return uiLanguage == 1; } }

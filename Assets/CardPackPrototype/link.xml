@@ -1,0 +1,8 @@
+<linker>
+  <assembly fullname="Assembly-CSharp">
+    <type fullname="CardOpen.Prototype.PrototypeBootstrap" preserve="all" />
+    <type fullname="CardOpen.Prototype.PackOnlyPrototype" preserve="all" />
+    <type fullname="CardOpen.Prototype.CardVisual" preserve="all" />
+    <type fullname="CardOpen.Prototype.PackVisual" preserve="all" />
+  </assembly>
+</linker>
