@@ -1,0 +1,126 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1270bfa34d1a0954b9836462c93efbbe, type: 3}
+  m_Name: SageOfMagicTower
+  m_EditorClassIdentifier: Assembly-CSharp::CardPackData
+  Name: "\uB9C8\uD0D1\uC758 \uD604\uC790"
+  FrontImage: {fileID: 2800000, guid: a4d8e5c9347f4b43a9f3261207e98c31, type: 3}
+  BackImage: {fileID: 2800000, guid: d3b9125f0f7a41d0b2a95ee06d05af84, type: 3}
+  CardsPerPack: 5
+  UseRarityRates: 1
+  CommonRate: 60
+  UncommonRate: 27
+  RareRate: 10
+  EpicRate: 3
+  LegendaryRate: 0
+  RandomizeNumberAndColor: 1
+  IncludeCards:
+  - Card: {fileID: 11400000, guid: 1d1f4d603147b3244bccba714548f140, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 8.571428
+  - Card: {fileID: 11400000, guid: 4d93128a8df351c4d8cd2b1da7c95c18, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 8.571428
+  - Card: {fileID: 11400000, guid: 69c4d742cb4757e44a74ee8c12b42052, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 8.571428
+  - Card: {fileID: 11400000, guid: ef6ca115568185347bdc08fad8eb5f22, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 8.571428
+  - Card: {fileID: 11400000, guid: 10f7747ebb5324b4baa5ce3032ada953, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 8.571428
+  - Card: {fileID: 11400000, guid: 65740ba620b3c654594f2b1be83086fd, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 8.571428
+  - Card: {fileID: 11400000, guid: a62f4a29d8bd4f858c7fbb23e8132c01, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 4.5
+  - Card: {fileID: 11400000, guid: 43672b0470807eb4289617c8a953d170, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 4.5
+  - Card: {fileID: 11400000, guid: f7357f111de65e24fa66726ed5f9f429, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 4.5
+  - Card: {fileID: 11400000, guid: 3512cd493e07de74ab271d59b89fcd2d, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 4.5
+  - Card: {fileID: 11400000, guid: 050d00688a402ac408dad2405c05a386, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 4.5
+  - Card: {fileID: 11400000, guid: ec61aab86ff713a4a899cf4bc712a3ff, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 4.5
+  - Card: {fileID: 11400000, guid: 4fda42c54e79eb64ea29d70f364c8964, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 1.4285715
+  - Card: {fileID: 11400000, guid: ea7cf4b69ebd4d78db1e026a3d275f45, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 1.4285715
+  - Card: {fileID: 11400000, guid: 67fdbe3e2120b844a9d6e168bf34d91b, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 1.4285715
+  - Card: {fileID: 11400000, guid: a5f9aaeb9d9bb5f468f2a693e8e39b93, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 1.4285715
+  - Card: {fileID: 11400000, guid: 96daa1de8eb43bc468c600ee514d17e9, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 1.4285715
+  - Card: {fileID: 11400000, guid: e8a269226d446cc4aa7915be3683aae4, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 1.4285715
+  - Card: {fileID: 11400000, guid: 7e4ca90c248182444ab2d032f0e7d568, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.6
+  - Card: {fileID: 11400000, guid: c6ad1315e31bf5a468d377cf6800387d, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 1.4285715
+  - Card: {fileID: 11400000, guid: 4be4d1dd7568c1040ad30afa92470c12, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.6
+  - Card: {fileID: 11400000, guid: f18ad3e7c94b4bb5a28e31f06c849d56, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.6
+  - Card: {fileID: 11400000, guid: d2d56321b96f0a6409422db15f7173c1, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.6
+  - Card: {fileID: 11400000, guid: 56c23e0144c26af4bb11033379898771, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.6
+  - Card: {fileID: 11400000, guid: 125ad73a06bdee648b49f1c4385293d8, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 8.571428

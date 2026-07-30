@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ceccc00981a4a44bb12cdaa8339d16c, type: 3}
+  m_Name: MagicShock
+  m_EditorClassIdentifier: Assembly-CSharp::CardData
+  Name: "\uB9C8\uBC95 \uCDA9\uACA9\uD30C"
+  Description: "\uCE74\uB4DC\uC758 \uC22B\uC790\uB97C \uC2A4\uD0DD\uC73C\uB85C \uD68D\uB4DD, 3 \uC774\uC0C1\uC774 \uB418\uBA74 3\uAC1C \uC18C\uBAA8\uD574\uC11C \uC810\uC218 \uBCF4\uB108\uC2A4 15% \uD68D\uB4DD"
+  Rare: 0
+  Image: {fileID: 2800000, guid: 8d306d28a54a67843948d0e8dd440de5, type: 3}
+  FitBackgroundImageToWidth: 1
+  Tags:
+  - 2
+  DeckAbilities:
+  - Trigger: 6
+    Effect: 7
+    Score: 0
+    PercentBonus: 15
+    NumberMultiplier: 1
+    PackCardCount: 0
+    ChancePercent: 0
+    ApplicableNumbers: []
+    ApplicableColors: []
+    ResetAccumulationAfterPack: 0
+    StackThreshold: 3
+    Description: "\uCE74\uB4DC\uC758 \uC22B\uC790\uB97C \uC2A4\uD0DD\uC73C\uB85C \uD68D\uB4DD, 3 \uC774\uC0C1\uC774 \uB418\uBA74 3\uAC1C \uC18C\uBAA8\uD574\uC11C \uC810\uC218 \uBCF4\uB108\uC2A4 15% \uD68D\uB4DD"

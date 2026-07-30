@@ -29,6 +29,7 @@ public class CardPackData : ScriptableObject
     [Range(0f, 100f)] public float UncommonRate = 25f;
     [Range(0f, 100f)] public float RareRate = 10f;
     [Range(0f, 100f)] public float EpicRate = 5f;
+    [Range(0f, 100f)] public float LegendaryRate = 0f;
     [Tooltip("Ignore stored entry attributes and roll a new number and color for every draw.")]
     public bool RandomizeNumberAndColor;
 
@@ -39,7 +40,7 @@ public class CardPackData : ScriptableObject
     {
         if (IncludeCards == null || IncludeCards.Count == 0) return;
 
-        int[] rarityCounts = new int[4];
+        int[] rarityCounts = new int[Enum.GetValues(typeof(CardRarity)).Length];
         for (int i = 0; i < IncludeCards.Count; i++)
         {
             CardPackEntry entry = IncludeCards[i];
@@ -64,6 +65,7 @@ public class CardPackData : ScriptableObject
             case CardRarity.Uncommon: return UncommonRate;
             case CardRarity.Rare: return RareRate;
             case CardRarity.Epic: return EpicRate;
+            case CardRarity.Legendary: return LegendaryRate;
             default: return CommonRate;
         }
     }
@@ -85,13 +87,69 @@ public class CardPackData : ScriptableObject
         };
     }
 
+    public CardPackEntry DrawRandomCard(CardRarity rarity)
+    {
+        if (IncludeCards == null || IncludeCards.Count == 0) return null;
+        CardPackEntry selected = DrawByEntryRate(rarity);
+        if (selected == null) return null;
+        if (!RandomizeNumberAndColor) return selected;
+        return new CardPackEntry
+        {
+            Card = selected.Card,
+            Number = UnityEngine.Random.Range(1, 7),
+            Color = (CardColor)UnityEngine.Random.Range(0, 5),
+            InclusionRate = selected.InclusionRate
+        };
+    }
+
+    public CardPackEntry DrawRandomCard(CardTag tag)
+    {
+        if (IncludeCards == null || IncludeCards.Count == 0) return null;
+        CardPackEntry selected = DrawByTagRate(tag);
+        if (selected == null) return null;
+        if (!RandomizeNumberAndColor) return selected;
+        return new CardPackEntry
+        {
+            Card = selected.Card,
+            Number = UnityEngine.Random.Range(1, 7),
+            Color = (CardColor)UnityEngine.Random.Range(0, 5),
+            InclusionRate = selected.InclusionRate
+        };
+    }
+
+    private CardPackEntry DrawByTagRate(CardTag tag)
+    {
+        float totalRate = 0f;
+        for (int i = 0; i < IncludeCards.Count; i++)
+        {
+            CardPackEntry entry = IncludeCards[i];
+            if (entry != null && entry.Card != null && entry.InclusionRate > 0f
+                && entry.Card.HasTag(tag))
+                totalRate += entry.InclusionRate;
+        }
+        if (totalRate <= 0f) return null;
+
+        float roll = UnityEngine.Random.value * totalRate;
+        float accumulated = 0f;
+        for (int i = 0; i < IncludeCards.Count; i++)
+        {
+            CardPackEntry entry = IncludeCards[i];
+            if (entry == null || entry.Card == null || entry.InclusionRate <= 0f
+                || !entry.Card.HasTag(tag)) continue;
+            accumulated += entry.InclusionRate;
+            if (roll <= accumulated) return entry;
+        }
+        return null;
+    }
+
     private CardPackEntry DrawByRarity()
     {
         float common = HasCards(CardRarity.Common) ? CommonRate : 0f;
         float uncommon = HasCards(CardRarity.Uncommon) ? UncommonRate : 0f;
         float rare = HasCards(CardRarity.Rare) ? RareRate : 0f;
         float epic = HasCards(CardRarity.Epic) ? EpicRate : 0f;
-        float total = common + uncommon + rare + epic;
+        float legendary = HasCards(CardRarity.Legendary) ? LegendaryRate : 0f;
+        float total = common + uncommon + rare + epic + legendary;
         if (total <= 0f) return null;
 
         float roll = UnityEngine.Random.value * total;
@@ -99,7 +157,8 @@ public class CardPackData : ScriptableObject
         if (roll < common) rarity = CardRarity.Common;
         else if (roll < common + uncommon) rarity = CardRarity.Uncommon;
         else if (roll < common + uncommon + rare) rarity = CardRarity.Rare;
-        else rarity = CardRarity.Epic;
+        else if (roll < common + uncommon + rare + epic) rarity = CardRarity.Epic;
+        else rarity = CardRarity.Legendary;
         return DrawByEntryRate(rarity);
     }
 
@@ -146,6 +205,7 @@ public class CardPackData : ScriptableObject
         UncommonRate = Mathf.Clamp(UncommonRate, 0f, 100f);
         RareRate = Mathf.Clamp(RareRate, 0f, 100f);
         EpicRate = Mathf.Clamp(EpicRate, 0f, 100f);
+        LegendaryRate = Mathf.Clamp(LegendaryRate, 0f, 100f);
         if (IncludeCards == null) return;
         for (int i = 0; i < IncludeCards.Count; i++)
         {

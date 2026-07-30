@@ -1,17 +1,22 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using TMPro;
 
 namespace CardOpen.Prototype
 {
     public sealed class CardVisual : MonoBehaviour
     {
+        private const int CardNameCharactersPerLine = 9;
+        private const float CardNameMaximumWidth = 1.32f;
+        private const float CardNameMaximumHeight = 0.38f;
         private MeshRenderer cardRenderer;
         private Material backMaterial;
         private Material frontMaterial;
         private bool accelerateSlide;
         private readonly List<MeshRenderer> faceLayerRenderers = new List<MeshRenderer>();
         private static readonly Dictionary<Font, Material> WorldTextMaterials = new Dictionary<Font, Material>();
+        private static readonly Dictionary<Font, TMP_FontAsset> TmpFontAssets = new Dictionary<Font, TMP_FontAsset>();
         private static Material hologramMaterial;
         private static readonly Dictionary<global::CardRarity, Material> RarityFinishMaterials =
             new Dictionary<global::CardRarity, Material>();
@@ -55,45 +60,213 @@ namespace CardOpen.Prototype
             cardMesh.AddComponent<MeshFilter>().sharedMesh = BuildRoundedCardMesh();
             cardRenderer = cardMesh.AddComponent<MeshRenderer>();
             backMaterial = cardBackMaterial;
+            bool isLegendary = data != null && data.Rare == global::CardRarity.Legendary;
             frontMaterial = data != null && data.Rare == global::CardRarity.Uncommon
                 ? GetUncommonGlossyMaterial(attributeMaterial)
                 : attributeMaterial;
             faceLayerRenderers.Clear();
-            CreateFrontLayer("Rarity Pattern", rarityPatternMaterial, 0.0008f);
-            if (illustrationMaterial != null)
-                CreateIllustrationLayer("Card Illustration", illustrationMaterial, 0.0016f);
+            if (isLegendary)
+            {
+                if (illustrationMaterial != null)
+                    CreateFrontLayer("Legendary Full Art", illustrationMaterial, 0.0008f, true);
+            }
+            else
+            {
+                CreateFrontLayer("Rarity Pattern", rarityPatternMaterial, 0.0008f);
+                if (illustrationMaterial != null)
+                    CreateIllustrationLayer("Card Illustration", illustrationMaterial, 0.0016f,
+                        data != null && data.FitBackgroundImageToWidth);
+            }
             CreateFrontLayer("Cost Symbol", costMaterial, 0.0024f);
             ApplyRarityFinish(data != null ? data.Rare : global::CardRarity.Common);
 
-            Color textColor = color == global::CardColor.Black
+            Color textColor = isLegendary
+                ? Color.white
+                : color == global::CardColor.Black
                 ? Color.white
                 : Color.black;
             string cardName = data != null && !string.IsNullOrWhiteSpace(data.Name) ? data.Name : "이름 없음";
-            string displayName = cardName;
-            int longestNameLine = cardName.Length;
-            if (cardName.Length > 9)
-            {
-                int splitIndex = Mathf.CeilToInt(cardName.Length * 0.5f);
-                displayName = cardName.Insert(splitIndex, "\n");
-                longestNameLine = Mathf.Max(splitIndex, cardName.Length - splitIndex);
-            }
-            string description = data != null ? WrapDescription(data.Description, 9) : string.Empty;
-            float descriptionScale = CalculateFittedTextScale(description, 0.03f, 9, 6);
+            string displayName = FormatCardName(cardName, out int longestNameLine, out _);
+            string description = BuildTaggedDescription(data, data != null ? data.Description : string.Empty);
             float nameLengthScale = longestNameLine > 5 ? 5f / longestNameLine : 1f;
             float nameScale = 0.04f * nameLengthScale;
             CreateTextLayer("Card Name", displayName, new Vector3(0.20f, 1.39f, -0.0105f),
-                textFont, 64, nameScale, TextAnchor.MiddleCenter, TextAlignment.Center, textColor, 30);
-            CreateTextLayer("Card Description", description, new Vector3(0f, -0.47f, -0.0108f),
-                textFont, 56, descriptionScale, TextAnchor.UpperCenter, TextAlignment.Center, textColor, 31,
-                1.50f, 0.98f);
+                textFont, 64, nameScale, TextAnchor.MiddleCenter, TextAlignment.Center, textColor, 30,
+                CardNameMaximumWidth, CardNameMaximumHeight, isLegendary);
+            CreateDescriptionLayer(description, new Vector3(0f, -0.47f, -0.0108f), textFont, textColor, 31,
+                isLegendary);
             SetFaceUp(true);
         }
 
-        private void CreateIllustrationLayer(string layerName, Material material, float depthOffset)
+        public void SetDisplayName(string cardName)
         {
+            if (string.IsNullOrWhiteSpace(cardName)) return;
+            string displayName = FormatCardName(cardName, out int longestNameLine, out _);
+
+            float nameLengthScale = longestNameLine > 5 ? 5f / longestNameLine : 1f;
+            float characterSize = 0.04f * nameLengthScale;
+            TextMesh[] textMeshes = GetComponentsInChildren<TextMesh>(true);
+            for (int i = 0; i < textMeshes.Length; i++)
+            {
+                TextMesh textMesh = textMeshes[i];
+                if (textMesh == null || !textMesh.gameObject.name.StartsWith("Card Name")) continue;
+                textMesh.text = displayName;
+                textMesh.characterSize = characterSize;
+                textMesh.transform.localScale = Vector3.one;
+                FitTextRendererInside(textMesh.transform, textMesh.GetComponent<MeshRenderer>(),
+                    CardNameMaximumWidth, CardNameMaximumHeight);
+            }
+        }
+
+        private static string FormatCardName(string cardName, out int longestLine, out int lineCount)
+        {
+            string normalized = (cardName ?? string.Empty).Replace("\r", string.Empty)
+                .Replace("\n", " ").Trim();
+            List<string> segments = new List<string>();
+            int equipmentIndex = normalized.IndexOf('(');
+            if (equipmentIndex > 0)
+            {
+                segments.Add(normalized.Substring(0, equipmentIndex).TrimEnd());
+                segments.Add(normalized.Substring(equipmentIndex).TrimStart());
+            }
+            else
+            {
+                segments.Add(normalized);
+            }
+
+            List<string> lines = new List<string>();
+            for (int segmentIndex = 0; segmentIndex < segments.Count; segmentIndex++)
+            {
+                string remaining = segments[segmentIndex];
+                while (remaining.Length > CardNameCharactersPerLine)
+                {
+                    int splitIndex = CardNameCharactersPerLine;
+                    for (int i = CardNameCharactersPerLine - 1; i > 0; i--)
+                    {
+                        if (!char.IsWhiteSpace(remaining[i])) continue;
+                        splitIndex = i;
+                        break;
+                    }
+                    string line = remaining.Substring(0, splitIndex).Trim();
+                    if (line.Length == 0)
+                    {
+                        splitIndex = CardNameCharactersPerLine;
+                        line = remaining.Substring(0, splitIndex);
+                    }
+                    lines.Add(line);
+                    remaining = remaining.Substring(splitIndex).TrimStart();
+                }
+                if (remaining.Length > 0) lines.Add(remaining);
+            }
+            if (lines.Count == 0) lines.Add(string.Empty);
+            longestLine = 0;
+            for (int i = 0; i < lines.Count; i++)
+                longestLine = Mathf.Max(longestLine, lines[i].Length);
+            lineCount = lines.Count;
+            return string.Join("\n", lines);
+        }
+
+        public void SetDisplayDescription(global::CardData data, string description)
+        {
+            string displayDescription = BuildTaggedDescription(data, description);
+            TextMeshPro[] textMeshes = GetComponentsInChildren<TextMeshPro>(true);
+            for (int i = 0; i < textMeshes.Length; i++)
+            {
+                TextMeshPro textMesh = textMeshes[i];
+                if (textMesh == null || !textMesh.gameObject.name.StartsWith("Card Description")) continue;
+                textMesh.text = displayDescription;
+                textMesh.ForceMeshUpdate();
+            }
+        }
+
+        private static string BuildTaggedDescription(global::CardData data, string description)
+        {
+            string body = description ?? string.Empty;
+            const string natureEffect = "다른 자연 카드의 능력이 발동할시 연쇄 발동";
+            bool hasNatureChainTarget = false;
+            if (data != null && data.DeckAbilities != null)
+            {
+                for (int i = 0; i < data.DeckAbilities.Count; i++)
+                {
+                    if (data.DeckAbilities[i] == null
+                        || !data.DeckAbilities[i].CanBeTriggeredByNatureChain()) continue;
+                    hasNatureChainTarget = true;
+                    break;
+                }
+            }
+            if (data != null && data.HasTag(global::CardTag.Nature)
+                && hasNatureChainTarget && !body.Contains(natureEffect))
+                body = string.IsNullOrWhiteSpace(body) ? natureEffect : body + "\n" + natureEffect;
+            if (data == null || data.Tags == null || data.Tags.Count == 0)
+                return body;
+            List<string> tagNames = new List<string>();
+            for (int i = 0; i < data.Tags.Count; i++)
+            {
+                string tagName;
+                switch (data.Tags[i])
+                {
+                    case global::CardTag.Nature: tagName = "자연"; break;
+                    case global::CardTag.Equipment: tagName = "장비"; break;
+                    case global::CardTag.Magic: tagName = "마법"; break;
+                    case global::CardTag.Rune: tagName = "룬"; break;
+                    case global::CardTag.Weapon: tagName = "무기"; break;
+                    default: tagName = data.Tags[i].ToString(); break;
+                }
+                if (!tagNames.Contains(tagName)) tagNames.Add(tagName);
+            }
+            string tagLine = "[" + string.Join(", ", tagNames) + "]";
+            return string.IsNullOrWhiteSpace(body) ? tagLine : tagLine + "\n" + body;
+        }
+        private void CreateIllustrationLayer(string layerName, Material material, float depthOffset,
+            bool fitBackgroundToWidth)
+        {
+            const float frameMinX = -0.79f;
+            const float frameMinY = -0.20f;
+            const float frameMaxX = 0.79f;
+            const float frameMaxY = 1.10f;
+            float width = frameMaxX - frameMinX;
+            float height = frameMaxY - frameMinY;
+            float centerX = (frameMinX + frameMaxX) * 0.5f;
+            float centerY = (frameMinY + frameMaxY) * 0.5f;
+
+            if (material != null)
+            {
+                material.mainTextureScale = Vector2.one;
+                material.mainTextureOffset = Vector2.zero;
+            }
+            Texture texture = material != null ? material.mainTexture : null;
+            if (texture != null && texture.width > 0 && texture.height > 0)
+            {
+                float textureAspect = texture.width / (float)texture.height;
+                float frameAspect = width / height;
+                if (fitBackgroundToWidth)
+                {
+                    if (textureAspect < frameAspect)
+                    {
+                        float visibleVerticalRatio = textureAspect / frameAspect;
+                        material.mainTextureScale = new Vector2(1f, visibleVerticalRatio);
+                        material.mainTextureOffset = new Vector2(0f, (1f - visibleVerticalRatio) * 0.5f);
+                    }
+                    else
+                    {
+                        height = width / textureAspect;
+                    }
+                }
+                else if (textureAspect < frameAspect)
+                {
+                    width = height * textureAspect;
+                }
+                else
+                {
+                    height = width / textureAspect;
+                }
+            }
+
             GameObject layer = new GameObject(layerName);
             layer.transform.SetParent(transform, false);
-            layer.AddComponent<MeshFilter>().sharedMesh = BuildRectLayerMesh(-0.75f, -0.20f, 0.75f, 1.10f, depthOffset);
+            layer.AddComponent<MeshFilter>().sharedMesh = BuildRectLayerMesh(
+                centerX - width * 0.5f, centerY - height * 0.5f,
+                centerX + width * 0.5f, centerY + height * 0.5f, depthOffset);
             MeshRenderer renderer = layer.AddComponent<MeshRenderer>();
             renderer.sharedMaterial = material;
             renderer.sortingOrder = 10;
@@ -120,9 +293,12 @@ namespace CardOpen.Prototype
         }
         private void CreateTextLayer(string layerName, string value, Vector3 position, Font font, int fontSize,
             float characterSize, TextAnchor anchor, TextAlignment alignment, Color color, int sortingOrder,
-            float maximumWidth = 0f, float maximumHeight = 0f)
+            float maximumWidth = 0f, float maximumHeight = 0f, bool addOutline = false)
         {
             if (font == null || string.IsNullOrEmpty(value)) return;
+            if (addOutline)
+                CreateTextOutlineLayers(layerName, value, position, font, fontSize, characterSize,
+                    anchor, alignment, sortingOrder, maximumWidth, maximumHeight);
             GameObject textObject = new GameObject(layerName);
             textObject.transform.SetParent(transform, false);
             textObject.transform.localPosition = position;
@@ -133,12 +309,82 @@ namespace CardOpen.Prototype
             textMesh.anchor = anchor;
             textMesh.alignment = alignment;
             textMesh.color = color;
+            textMesh.fontStyle = FontStyle.Bold;
             textMesh.text = value;
             MeshRenderer renderer = textObject.GetComponent<MeshRenderer>();
             renderer.sharedMaterial = GetWorldTextMaterial(font);
-            renderer.sortingOrder = 0;
+            renderer.sortingOrder = sortingOrder;
             FitTextRendererInside(textObject.transform, renderer, maximumWidth, maximumHeight);
             faceLayerRenderers.Add(renderer);
+            CreateTextWeightLayers(layerName, value, position, font, fontSize, characterSize,
+                anchor, alignment, color, sortingOrder, maximumWidth, maximumHeight);
+        }
+
+        private void CreateTextWeightLayers(string layerName, string value, Vector3 position, Font font,
+            int fontSize, float characterSize, TextAnchor anchor, TextAlignment alignment, Color color,
+            int sortingOrder, float maximumWidth, float maximumHeight)
+        {
+            const float weightOffset = 0.0025f;
+            float[] offsets = { -weightOffset, weightOffset };
+            for (int i = 0; i < offsets.Length; i++)
+            {
+                GameObject weightObject = new GameObject(layerName + " Weight");
+                weightObject.transform.SetParent(transform, false);
+                weightObject.transform.localPosition = position + new Vector3(offsets[i], 0f, 0.0002f);
+                TextMesh weightText = weightObject.AddComponent<TextMesh>();
+                weightText.font = font;
+                weightText.fontSize = fontSize;
+                weightText.characterSize = characterSize;
+                weightText.anchor = anchor;
+                weightText.alignment = alignment;
+                weightText.color = color;
+                weightText.fontStyle = FontStyle.Bold;
+                weightText.text = value;
+                MeshRenderer weightRenderer = weightObject.GetComponent<MeshRenderer>();
+                weightRenderer.sharedMaterial = GetWorldTextMaterial(font);
+                weightRenderer.sortingOrder = sortingOrder;
+                FitTextRendererInside(weightObject.transform, weightRenderer, maximumWidth, maximumHeight);
+                faceLayerRenderers.Add(weightRenderer);
+            }
+        }
+
+        private void CreateTextOutlineLayers(string layerName, string value, Vector3 position, Font font,
+            int fontSize, float characterSize, TextAnchor anchor, TextAlignment alignment, int sortingOrder,
+            float maximumWidth, float maximumHeight)
+        {
+            float offset = Mathf.Max(0.008f, characterSize * 0.20f);
+            Vector2[] offsets =
+            {
+                new Vector2(-offset, 0f),
+                new Vector2(offset, 0f),
+                new Vector2(0f, -offset),
+                new Vector2(0f, offset),
+                new Vector2(-offset, -offset),
+                new Vector2(-offset, offset),
+                new Vector2(offset, -offset),
+                new Vector2(offset, offset)
+            };
+            for (int i = 0; i < offsets.Length; i++)
+            {
+                GameObject outlineObject = new GameObject(layerName + " Outline");
+                outlineObject.transform.SetParent(transform, false);
+                outlineObject.transform.localPosition = position
+                    + new Vector3(offsets[i].x, offsets[i].y, 0.0008f);
+                TextMesh outline = outlineObject.AddComponent<TextMesh>();
+                outline.font = font;
+                outline.fontSize = fontSize;
+                outline.characterSize = characterSize;
+                outline.anchor = anchor;
+                outline.alignment = alignment;
+                outline.color = Color.black;
+                outline.fontStyle = FontStyle.Bold;
+                outline.text = value;
+                MeshRenderer renderer = outlineObject.GetComponent<MeshRenderer>();
+                renderer.sharedMaterial = GetWorldTextMaterial(font);
+                renderer.sortingOrder = sortingOrder - 1;
+                FitTextRendererInside(outlineObject.transform, renderer, maximumWidth, maximumHeight);
+                faceLayerRenderers.Add(renderer);
+            }
         }
 
         private static void FitTextRendererInside(Transform textTransform, Renderer renderer,
@@ -152,55 +398,103 @@ namespace CardOpen.Prototype
             textTransform.localScale = new Vector3(fitScale, fitScale, 1f);
         }
 
-        private static float CalculateFittedTextScale(string value, float baseScale,
-            int maximumCharactersPerLine, int maximumLines)
+        private static TMP_FontAsset GetTmpFontAsset(Font font)
         {
-            if (string.IsNullOrEmpty(value)) return baseScale;
-            string[] lines = value.Split('\n');
-            int longestLine = 0;
-            for (int i = 0; i < lines.Length; i++)
-                longestLine = Mathf.Max(longestLine, lines[i].Length);
+            if (font == null) return TMP_Settings.defaultFontAsset;
+            if (TmpFontAssets.TryGetValue(font, out TMP_FontAsset cached)) return cached;
 
-            float widthScale = longestLine > maximumCharactersPerLine
-                ? maximumCharactersPerLine / (float)longestLine
-                : 1f;
-            float heightScale = lines.Length > maximumLines
-                ? maximumLines / (float)lines.Length
-                : 1f;
-            return baseScale * Mathf.Min(1f, widthScale, heightScale);
-        }
-
-        private static string WrapDescription(string value, int charactersPerLine)
-        {
-            if (string.IsNullOrWhiteSpace(value)) return string.Empty;
-            string normalized = value.Replace("\r", string.Empty);
-            System.Text.StringBuilder builder = new System.Text.StringBuilder();
-            int column = 0;
-            for (int i = 0; i < normalized.Length; i++)
+            TMP_FontAsset fontAsset = TMP_FontAsset.CreateFontAsset(font);
+            if (fontAsset == null) fontAsset = TMP_Settings.defaultFontAsset;
+            if (fontAsset != null)
             {
-                char character = normalized[i];
-                if (character == '\n')
-                {
-                    builder.Append(character);
-                    column = 0;
-                    continue;
-                }
-                if (column >= charactersPerLine && character != ' ')
-                {
-                    builder.Append('\n');
-                    column = 0;
-                }
-                builder.Append(character);
-                column++;
+                fontAsset.name = "Runtime TMP - " + font.name;
+                fontAsset.atlasPopulationMode = AtlasPopulationMode.Dynamic;
+                fontAsset.isMultiAtlasTexturesEnabled = true;
             }
-            return builder.ToString();
+            TmpFontAssets.Add(font, fontAsset);
+            return fontAsset;
         }
 
-        private void CreateFrontLayer(string layerName, Material material, float depthOffset)
+        private void CreateDescriptionLayer(string value, Vector3 position, Font font, Color color, int sortingOrder, bool addOutline = false)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return;
+            TMP_FontAsset fontAsset = GetTmpFontAsset(font);
+            if (fontAsset == null) return;
+
+            GameObject textObject = new GameObject("Card Description");
+            textObject.transform.SetParent(transform, false);
+            TextMeshPro textMesh = textObject.AddComponent<TextMeshPro>();
+            RectTransform rectTransform = textMesh.rectTransform;
+            rectTransform.pivot = new Vector2(0.5f, 1f);
+            rectTransform.sizeDelta = new Vector2(1.50f, 0.98f);
+            rectTransform.localPosition = position;
+            rectTransform.localRotation = Quaternion.identity;
+            rectTransform.localScale = Vector3.one;
+
+            textMesh.font = fontAsset;
+            textMesh.text = value.Replace("\r", string.Empty);
+            textMesh.color = color;
+            textMesh.fontStyle = FontStyles.Bold;
+            textMesh.fontWeight = FontWeight.Heavy;
+            textMesh.alignment = TextAlignmentOptions.Top;
+            textMesh.textWrappingMode = TextWrappingModes.Normal;
+            textMesh.overflowMode = TextOverflowModes.Truncate;
+            textMesh.enableAutoSizing = true;
+            textMesh.fontSize = 1.45f;
+            textMesh.fontSizeMax = 1.45f;
+            textMesh.fontSizeMin = 0.35f;
+            textMesh.margin = new Vector4(0.025f, 0.015f, 0.025f, 0.015f);
+            textMesh.richText = false;
+            textMesh.extraPadding = true;
+            textMesh.outlineWidth = 0f;
+            textMesh.ForceMeshUpdate();
+            if (addOutline)
+                CreateDescriptionOutlineLayers(textObject, position, sortingOrder);
+
+            MeshRenderer renderer = textObject.GetComponent<MeshRenderer>();
+            renderer.sortingOrder = sortingOrder;
+            faceLayerRenderers.Add(renderer);
+        }
+        private void CreateDescriptionOutlineLayers(GameObject source, Vector3 position, int sortingOrder)
+        {
+            const float offset = 0.008f;
+            Vector2[] offsets =
+            {
+                new Vector2(-offset, 0f),
+                new Vector2(offset, 0f),
+                new Vector2(0f, -offset),
+                new Vector2(0f, offset),
+                new Vector2(-offset, -offset),
+                new Vector2(-offset, offset),
+                new Vector2(offset, -offset),
+                new Vector2(offset, offset)
+            };
+            for (int i = 0; i < offsets.Length; i++)
+            {
+                GameObject outlineObject = Instantiate(source, transform);
+                outlineObject.name = "Card Description Outline";
+                TextMeshPro outlineText = outlineObject.GetComponent<TextMeshPro>();
+                outlineText.color = Color.black;
+                outlineText.outlineWidth = 0f;
+                RectTransform outlineTransform = outlineText.rectTransform;
+                outlineTransform.localPosition = position
+                    + new Vector3(offsets[i].x, offsets[i].y, 0.0008f);
+                outlineTransform.localRotation = Quaternion.identity;
+                outlineTransform.localScale = Vector3.one;
+                outlineText.ForceMeshUpdate();
+                MeshRenderer outlineRenderer = outlineObject.GetComponent<MeshRenderer>();
+                outlineRenderer.sortingOrder = sortingOrder - 1;
+                faceLayerRenderers.Add(outlineRenderer);
+            }
+        }
+
+        private void CreateFrontLayer(string layerName, Material material, float depthOffset,
+            bool preserveTextureAspect = false)
         {
             GameObject layer = new GameObject(layerName);
             layer.transform.SetParent(transform, false);
-            layer.AddComponent<MeshFilter>().sharedMesh = BuildFrontLayerMesh(depthOffset);
+            layer.AddComponent<MeshFilter>().sharedMesh = BuildFrontLayerMesh(
+                depthOffset, material, preserveTextureAspect);
             MeshRenderer renderer = layer.AddComponent<MeshRenderer>();
             renderer.sharedMaterial = material;
             faceLayerRenderers.Add(renderer);
@@ -332,6 +626,11 @@ namespace CardOpen.Prototype
                     material.SetColor("_Tint", new Color(0.72f, 0.30f, 1f, 1f));
                     material.SetFloat("_Intensity", 0.9f);
                     break;
+                case global::CardRarity.Legendary:
+                    material.SetFloat("_EffectMode", 3f);
+                    material.SetColor("_Tint", new Color(0.32f, 0.88f, 1f, 1f));
+                    material.SetFloat("_Intensity", 1f);
+                    break;
                 default:
                     return null;
             }
@@ -395,7 +694,7 @@ namespace CardOpen.Prototype
             return mesh;
         }
 
-        private static Mesh BuildFrontLayerMesh(float depthOffset)
+        private static Mesh BuildFrontLayerMesh(float depthOffset, Material material = null, bool preserveTextureAspect = false)
         {
             const float width = 1.82f;
             const float height = 3.28f;
@@ -403,6 +702,25 @@ namespace CardOpen.Prototype
             const int cornerSegments = 3;
             float halfWidth = width * 0.5f;
             float halfHeight = height * 0.5f;
+            float uvScaleX = 1f;
+            float uvScaleY = 1f;
+            Texture texture = null;
+            if (preserveTextureAspect && material != null)
+            {
+                if (material.HasProperty("_BaseMap"))
+                    texture = material.GetTexture("_BaseMap");
+                else if (material.HasProperty("_MainTex"))
+                    texture = material.GetTexture("_MainTex");
+            }
+            if (preserveTextureAspect && texture != null && texture.width > 0 && texture.height > 0)
+            {
+                float textureAspect = texture.width / (float)texture.height;
+                float cardAspect = width / height;
+                if (textureAspect > cardAspect)
+                    uvScaleX = cardAspect / textureAspect;
+                else if (textureAspect < cardAspect)
+                    uvScaleY = textureAspect / cardAspect;
+            }
             List<Vector2> outline = new List<Vector2>();
             AddCorner(outline, new Vector2(halfWidth - radius, -halfHeight + radius), -90f, 0f, radius, cornerSegments);
             AddCorner(outline, new Vector2(halfWidth - radius, halfHeight - radius), 0f, 90f, radius, cornerSegments);
@@ -419,7 +737,7 @@ namespace CardOpen.Prototype
             {
                 Vector2 point = outline[i];
                 vertices.Add(new Vector3(point.x, point.y, z));
-                uvs.Add(new Vector2(point.x / width + 0.5f, point.y / height + 0.5f));
+                uvs.Add(new Vector2(point.x / width * uvScaleX + 0.5f, point.y / height * uvScaleY + 0.5f));
             }
             for (int i = 0; i < outline.Count; i++)
             {

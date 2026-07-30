@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1270bfa34d1a0954b9836462c93efbbe, type: 3}
+  m_Name: HeroNew
+  m_EditorClassIdentifier: Assembly-CSharp::CardPackData
+  Name: "\uC601\uC6C5 \uC0C8\uB85C\uC6B4"
+  FrontImage: {fileID: 2800000, guid: 707b3660e66336b409c4219d09e5031f, type: 3}
+  BackImage: {fileID: 2800000, guid: 355fe325746924a47af1f181429cf990, type: 3}
+  CardsPerPack: 1
+  UseRarityRates: 1
+  CommonRate: 0
+  UncommonRate: 0
+  RareRate: 0
+  EpicRate: 100
+  LegendaryRate: 0
+  RandomizeNumberAndColor: 1
+  IncludeCards:
+  - Card: {fileID: 11400000, guid: c233f0de84bdc4e4faaadf92962dc095, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 100

@@ -18,28 +18,113 @@ MonoBehaviour:
   CardsPerPack: 5
   UseRarityRates: 1
   CommonRate: 60
-  UncommonRate: 25
+  UncommonRate: 27
   RareRate: 10
-  EpicRate: 5
+  EpicRate: 3
+  LegendaryRate: 0
   RandomizeNumberAndColor: 1
   IncludeCards:
+  - Card: {fileID: 11400000, guid: 33bb9d54d6c253f449d224d71a1e451e, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 7.5
+  - Card: {fileID: 11400000, guid: 4d93128a8df351c4d8cd2b1da7c95c18, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 7.5
+  - Card: {fileID: 11400000, guid: 0c001282477550f4b8dab93f5fe3ce76, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 7.5
+  - Card: {fileID: 11400000, guid: 869ac0c016ab7ab4f946be7361441b66, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 7.5
   - Card: {fileID: 11400000, guid: c158d2f66fdd13a49b7a28986cb95467, type: 2}
-    Number: 2
+    Number: 1
     Color: 0
-    InclusionRate: 33
-  - Card: {fileID: 11400000, guid: f3cc4e646f864f141a5460fb73da6b27, type: 2}
-    Number: 2
+    InclusionRate: 7.5
+  - Card: {fileID: 11400000, guid: 65740ba620b3c654594f2b1be83086fd, type: 2}
+    Number: 1
     Color: 0
-    InclusionRate: 26.1
-  - Card: {fileID: 11400000, guid: 2a9ecf79b52eeb84399a0b0b2c437051, type: 2}
-    Number: 2
-    Color: 2
-    InclusionRate: 42.3
-  - Card: {fileID: 11400000, guid: 6e3f472f2edb4344b8066ede99ccbd6d, type: 2}
-    Number: 2
-    Color: 3
-    InclusionRate: 42.3
+    InclusionRate: 7.5
+  - Card: {fileID: 11400000, guid: ffc8137ea9edb964fabde2799ed6c4db, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 7.5
+  - Card: {fileID: 11400000, guid: 778ad2bf82b5047469e2235680399147, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 7.5
+  - Card: {fileID: 11400000, guid: 69164d50d21148f4aaea8ae4406c133f, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 3.857143
+  - Card: {fileID: 11400000, guid: e3d80eef534988b4ea553fa9ddd02692, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 3.857143
+  - Card: {fileID: 11400000, guid: 3512cd493e07de74ab271d59b89fcd2d, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 3.857143
   - Card: {fileID: 11400000, guid: eaeab28b638bcb640bb91e1e2deb36d0, type: 2}
-    Number: 2
-    Color: 4
-    InclusionRate: 42.3
+    Number: 1
+    Color: 0
+    InclusionRate: 3.857143
+  - Card: {fileID: 11400000, guid: 43672b0470807eb4289617c8a953d170, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 3.857143
+  - Card: {fileID: 11400000, guid: 2a9ecf79b52eeb84399a0b0b2c437051, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 3.857143
+  - Card: {fileID: 11400000, guid: 78f4a20c4a53dc54999ac26a44cea8c9, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 3.857143
+  - Card: {fileID: 11400000, guid: 6a82e8f0d73b8794fa949d11f3b2d863, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 1.6666666
+  - Card: {fileID: 11400000, guid: 4fda42c54e79eb64ea29d70f364c8964, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 1.6666666
+  - Card: {fileID: 11400000, guid: ea7cf4b69ebd4d78db1e026a3d275f45, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 1.6666666
+  - Card: {fileID: 11400000, guid: 67fdbe3e2120b844a9d6e168bf34d91b, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 1.6666666
+  - Card: {fileID: 11400000, guid: e8a269226d446cc4aa7915be3683aae4, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 1.6666666
+  - Card: {fileID: 11400000, guid: 6e3f472f2edb4344b8066ede99ccbd6d, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 1.6666666
+  - Card: {fileID: 11400000, guid: b65ccc41ca685d64a964e7092050c6a3, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.6
+  - Card: {fileID: 11400000, guid: 4be4d1dd7568c1040ad30afa92470c12, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.6
+  - Card: {fileID: 11400000, guid: f9f94611b9737234e8f9d3e0d1b5fc00, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.6
+  - Card: {fileID: 11400000, guid: b4932a60599d6774c9e924283dd84c2b, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.6
+  - Card: {fileID: 11400000, guid: 615637c2722757c4493b5dc998dcb99c, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.6

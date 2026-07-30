@@ -13,11 +13,12 @@ MonoBehaviour:
   m_Name: EarthRune
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uB300\uC9C0\uB8EC"
-  Description: "\uCD08\uB85D\uC0C9 \uCE74\uB4DC\uC5D0 40% \uC810\uC218 \uBCF4\uB108\uC2A4,
-    \uCD08\uB85D\uC0C9 \uCE74\uB4DC\uB97C \uBF51\uC744 \uC2DC 4% \uD655\uB960\uB85C
-    \uD640\uB85C\uADF8\uB7A8 \uC778\uCC48\uD2B8"
+  Description: "초록색 카드에 40% 점수 보너스, 초록색 카드를 뽑을 시 4% 확률로 홀로그램 인챈트\n다른 종류의 룬을 획득하면 공명한다."
   Rare: 2
   Image: {fileID: 2800000, guid: 014aaeaaa787eba4db7b11c483a1c963, type: 3}
+  Tags:
+  - 1
+  - 3
   DeckAbilities:
   - Trigger: 15
     Effect: 1

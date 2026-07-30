@@ -13,32 +13,49 @@ MonoBehaviour:
   m_Name: FireRune
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uBD88\uB8EC"
-  Description: "\uBD89\uC740\uC0C9 \uCE74\uB4DC\uC5D0 20% \uC810\uC218 \uBCF4\uB108\uC2A4,
-    \uBD89\uC740\uC0C9 \uCE74\uB4DC\uB97C \uBF51\uC744 \uC2DC 3% \uD655\uB960\uB85C
-    \uD640\uB85C\uADF8\uB7A8 \uBD80\uC5EC"
+  Description: "붉은색 카드에 20% 점수 보너스, 붉은색 카드를 뽑을 시 2% 확률로 홀로그램 부여\n다른 종류의 룬을 획득하면 공명한다."
   Rare: 1
   Image: {fileID: 2800000, guid: d747a895d8f4a23449054158390e48c0, type: 3}
+  FitBackgroundImageToWidth: 0
+  Tags: 0100000003000000
+  CanEquipMagic: 0
   DeckAbilities:
   - Trigger: 15
     Effect: 1
     Score: 0
     PercentBonus: 20
+    MaximumPercent: 0
     NumberMultiplier: 0
     PackCardCount: 0
     ChancePercent: 0
     ApplicableNumbers: 
     ApplicableColors: 02000000
     ResetAccumulationAfterPack: 0
+    StackThreshold: 1
+    DurationDrawCount: 0
+    GeneratedCard: {fileID: 0}
+    TransformedCard: {fileID: 0}
+    PacksToTransform: 1
+    GeneratedCardTag: 0
+    MaxTriggersPerPack: 0
     Description: "\uBD89\uC740\uC0C9 \uCE74\uB4DC\uC5D0 20% \uC810\uC218 \uBCF4\uB108\uC2A4"
   - Trigger: 15
     Effect: 4
     Score: 0
     PercentBonus: 0
+    MaximumPercent: 0
     NumberMultiplier: 0
     PackCardCount: 0
-    ChancePercent: 3
+    ChancePercent: 2
     ApplicableNumbers: 
     ApplicableColors: 02000000
     ResetAccumulationAfterPack: 0
-    Description: "\uBD89\uC740\uC0C9 \uCE74\uB4DC\uB97C \uBF51\uC744 \uC2DC 3% \uD655\uB960\uB85C
+    StackThreshold: 1
+    DurationDrawCount: 0
+    GeneratedCard: {fileID: 0}
+    TransformedCard: {fileID: 0}
+    PacksToTransform: 1
+    GeneratedCardTag: 0
+    MaxTriggersPerPack: 0
+    Description: "\uBD89\uC740\uC0C9 \uCE74\uB4DC\uB97C \uBF51\uC744 \uC2DC 2% \uD655\uB960\uB85C
       \uD640\uB85C\uADF8\uB7A8 \uBD80\uC5EC"

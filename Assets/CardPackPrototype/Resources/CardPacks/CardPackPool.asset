@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 23a0d74bb7914fbda81e2cde32540a19, type: 3}
+  m_Name: CardPackPool
+  m_EditorClassIdentifier: Assembly-CSharp::CardPackPoolData
+  Packs:
+  - Enabled: 1
+    Pack: {fileID: 11400000, guid: b1d958150c3998e438f716d5fceaf608, type: 2}
+    Weight: 1
+  - Enabled: 1
+    Pack: {fileID: 11400000, guid: f9ae1a6ca10798d47839798b2b544643, type: 2}
+    Weight: 1
+  - Enabled: 1
+    Pack: {fileID: 11400000, guid: 86c1ed1b130c4965915d3a034ea041ba, type: 2}
+    Weight: 1
+  - Enabled: 1
+    Pack: {fileID: 11400000, guid: de07ef5be8821dc45b0a9234b0fb5bf2, type: 2}
+    Weight: 0.1
+  - Enabled: 1
+    Pack: {fileID: 11400000, guid: d74b40a6747243ffa1bf7ae4c4d0c484, type: 2}
+    Weight: 1
+  - Enabled: 1
+    Pack: {fileID: 11400000, guid: 4e4eba4fb40398248a0c0129bd2c5626, type: 2}
+    Weight: 1
+  - Enabled: 1
+    Pack: {fileID: 11400000, guid: d1c80178ca0d466c886f6110fc858951, type: 2}
+    Weight: 1
+  - Enabled: 1
+    Pack: {fileID: 11400000, guid: 1efd927dd0c0a1c4b836cd615fc1777a, type: 2}
+    Weight: 1

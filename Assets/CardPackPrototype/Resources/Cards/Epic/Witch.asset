@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ceccc00981a4a44bb12cdaa8339d16c, type: 3}
+  m_Name: Witch
+  m_EditorClassIdentifier: Assembly-CSharp::CardData
+  Name: "\uB9C8\uB140"
+  Description: "10% 확률로 홀로그램을 부여한다, 마법을 1장 장착할 수 있다."
+  Rare: 3
+  Image: {fileID: 2800000, guid: 64fe8c0b2ee218a4b865456f2889d3f3, type: 3}
+  Tags: 
+  CanEquipMagic: 1
+  DeckAbilities:
+  - Trigger: 6
+    Effect: 19
+    Score: 0
+    PercentBonus: 0
+    MaximumPercent: 0
+    NumberMultiplier: 0
+    PackCardCount: 0
+    ChancePercent: 10
+    ApplicableNumbers: 
+    ApplicableColors: 
+    ResetAccumulationAfterPack: 0
+    StackThreshold: 1
+    DurationDrawCount: 0
+    GeneratedCard: {fileID: 0}
+    TransformedCard: {fileID: 0}
+    PacksToTransform: 1
+    GeneratedCardTag: 0
+    MaxTriggersPerPack: 0
+    Description: "10% \uD655\uB960\uB85C \uD640\uB85C\uADF8\uB7A8\uC744 \uBD80\uC5EC\uD55C\uB2E4"

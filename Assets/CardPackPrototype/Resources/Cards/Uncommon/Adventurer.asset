@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ceccc00981a4a44bb12cdaa8339d16c, type: 3}
+  m_Name: Adventurer
+  m_EditorClassIdentifier: Assembly-CSharp::CardData
+  Name: "\uBAA8\uD5D8\uAC00"
+  Description: "카드팩 5개 후에 용사로 성장한다, 무기를 1개 장착할 수 있다."
+  Rare: 1
+  Image: {fileID: 2800000, guid: 562ffafc0a8268b4ba8e37a51efae428, type: 3}
+  Tags:
+  CanEquipWeapon: 1
+  DeckAbilities:
+  - Trigger: 0
+    Effect: 18
+    Score: 0
+    PercentBonus: 0
+    MaximumPercent: 0
+    NumberMultiplier: 0
+    PackCardCount: 0
+    ChancePercent: 0
+    ApplicableNumbers: 
+    ApplicableColors: 
+    ResetAccumulationAfterPack: 0
+    StackThreshold: 1
+    DurationDrawCount: 0
+    GeneratedCard: {fileID: 0}
+    TransformedCard: {fileID: 11400000, guid: c233f0de84bdc4e4faaadf92962dc095, type: 2}
+    PacksToTransform: 5
+    GeneratedCardTag: 0
+    MaxTriggersPerPack: 0
+    Description: "\uCE74\uB4DC\uD329 5\uAC1C \uD6C4\uC5D0 \uC6A9\uC0AC\uB85C \uC131\uC7A5\uD55C\uB2E4"

@@ -1,6 +1,10 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Text;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 namespace CardOpen.Prototype
 {
@@ -13,7 +17,9 @@ namespace CardOpen.Prototype
             public float StartTime;
             public int Lane;
             public int Score;
+            public float PlaybackSpeed = 1f;
             public bool AddedToPendingScore;
+            public bool SoundPlayed;
         }
         private sealed class StoredCard
         {
@@ -25,13 +31,79 @@ namespace CardOpen.Prototype
             public bool IsHolographic;
             public bool IsStoredInDeck;
             public int DeckSlot = -1;
+            public int CombinedCopies = 1;
+            public int CombinedHolographicCopies;
+            public StoredCard EquippedMagic;
+            public StoredCard EquippedWeapon;
+            public readonly List<StoredCard> InheritedRelics = new List<StoredCard>();
             public readonly Dictionary<int, float> AccumulatedPercentByAbility =
                 new Dictionary<int, float>();
+            public readonly Dictionary<int, int> AccumulatedFlatScoreByAbility =
+                new Dictionary<int, int>();
+            public readonly Dictionary<int, int> RemainingDrawsByAbility =
+                new Dictionary<int, int>();
+            public readonly Dictionary<int, int> StackByAbilityCopy = new Dictionary<int, int>();
+            public readonly Dictionary<int, int> TriggeredStackCountsThisDraw = new Dictionary<int, int>();
+            public readonly HashSet<int> UsedOncePerPackAbilityCopies = new HashSet<int>();
+            public readonly Dictionary<int, int> PerPackTriggerCountByAbility =
+                new Dictionary<int, int>();
+            public readonly Dictionary<int, int> PacksElapsedByAbility =
+                new Dictionary<int, int>();
         }
-        private enum RevealPhase { Pack, CardBack, CardFront, Animating }
+        [Serializable]
+        private sealed class SharedIntValue
+        {
+            public int Key;
+            public int Value;
+        }
+
+        [Serializable]
+        private sealed class SharedFloatValue
+        {
+            public int Key;
+            public float Value;
+        }
+
+        [Serializable]
+        private sealed class SharedCardData
+        {
+            public string ResourceName;
+            public int Color;
+            public int Number;
+            public int Rarity;
+            public int DeckSlot;
+            public int CombinedCopies;
+            public int CombinedHolographicCopies;
+            public bool IsHolographic;
+            public SharedCardData EquippedMagic;
+            public SharedCardData EquippedWeapon;
+            public SharedCardData[] InheritedRelics;
+            public SharedIntValue[] AccumulatedFlatScore;
+            public SharedIntValue[] RemainingDraws;
+            public SharedIntValue[] Stacks;
+            public SharedIntValue[] PerPackTriggers;
+            public SharedIntValue[] PacksElapsed;
+            public SharedFloatValue[] AccumulatedPercent;
+        }
+
+        [Serializable]
+        private sealed class SharedResultData
+        {
+            public int Version = 1;
+            public int TotalScore;
+            public int RoundScore;
+            public int GoalIndex;
+            public int CompletedPacks;
+            public bool Cleared;
+            public SharedCardData[] Deck;
+        }
+        private enum RevealPhase { PackChoice, Pack, CardBack, CardFront, Animating, GameOver, RunCleared }
         private const int FallbackCardsPerPack = 5;
+        private const int PacksPerGoal = 3;
+        private const int ScorePopupTrailCapacity = 5;
+        private static readonly int[] GoalScores = { 5000, 10000, 20000, 35000, 60000, 100000 };
         private const float RevealedCardScale = 1.5f;
-        private static readonly Rect PackTearZone = new Rect(410f, 0f, 460f, 320f);
+        private static readonly Rect PackTearZone = new Rect(410f, 0f, 460f, 380f);
         private static readonly Rect CardGestureZone = new Rect(500f, 105f, 340f, 505f);
         private static readonly Vector3 PackHome = new Vector3(0f, 0.5f, -0.65f);
         private static readonly Vector3 CardHome = new Vector3(0f, 1.15f, -0.24f);
@@ -40,6 +112,9 @@ namespace CardOpen.Prototype
         private readonly List<StoredCard> currentPackCards = new List<StoredCard>();
         private readonly List<StoredCard> deckCards = new List<StoredCard>();
         private StoredCard previousRevealedCard;
+        private readonly HashSet<StoredCard> naturallyTriggeredNatureOwners = new HashSet<StoredCard>();
+        private readonly HashSet<StoredCard> pendingPackOpenNatureSources = new HashSet<StoredCard>();
+        private bool natureAbilityChainActive;
         private readonly List<GameObject> deckVisuals = new List<GameObject>();
         private readonly List<ScorePopup> scorePopups = new List<ScorePopup>();
         private readonly Dictionary<string, Material> materials = new Dictionary<string, Material>();
@@ -63,13 +138,36 @@ namespace CardOpen.Prototype
         private bool deckCardDragActive;
         private Vector2 deckCardDragStart;
         [SerializeField] private global::CardPackData activePackData;
+        [SerializeField] private global::CardPackPoolData packPoolData;
+        private global::CardPackData[] randomPackPool;
+        private global::CardPackData leftPackChoice;
+        private global::CardPackData rightPackChoice;
+        private PackVisual leftPackChoiceVisual;
+        private PackVisual rightPackChoiceVisual;
+        private readonly List<Material> packChoiceMaterials = new List<Material>();
+        private global::CardPackData inspectedPackChoice;
+        private Vector2 packContentsScroll;
+        private CardVisual packContentsPreviewVisual;
+        private int packContentsPreviewIndex;
+        private bool packContentsPackWasActive;
+        private bool packContentsStackWasActive;
         private global::CardData[] fallbackCards;
         private global::CardData runtimeFallbackCard;
         private global::CardPackEntry runtimeFallbackEntry;
         private Font font;
+        private AudioSource scorePopupAudioSource;
+        private AudioClip scorePopupAudioClip;
+        private AudioSource abilityEffectAudioSource;
+        private AudioClip magicEquipAudioClip;
+        private AudioClip runeResonanceAudioClip;
+        private AudioSource packTearAudioSource;
+        private AudioClip packTearAudioClip;
+        private AudioSource cardRarityAudioSource;
+        private readonly AudioClip[] cardRarityAudioClips = new AudioClip[5];
         private RevealPhase phase;
         private int cardIndex;
         private bool currentPackIsHolographic;
+        private bool runeResonanceWasActive;
         private bool gestureDragging;
         private bool inspectionDragging;
         private Vector2 dragStart;
@@ -85,24 +183,331 @@ namespace CardOpen.Prototype
         private int queuedCardSwipes;
         private float queuedSwipeDirection;
         private int totalScore;
+        private int roundScore;
+        private int completedPacks;
+        private int currentGoalIndex;
+        private bool currentPackOpenedForGoal;
         private int pendingScore;
         private float pendingScoreCommitTime = -1f;
         private int scoreTransferAmount;
         private int scoreTransferApplied;
         private float scoreTransferStartTime = -1f;
         private GUIStyle scoreStyle;
+        private GUIStyle goalStyle;
+        private GUIStyle runEndTitleStyle;
+        private GUIStyle runEndBodyStyle;
+        private GUIStyle runEndButtonStyle;
+        private GUIStyle packChoiceTitleStyle;
+        private GUIStyle packContentsTitleStyle;
+        private GUIStyle packContentsCardStyle;
         private GUIStyle scorePopupStyle;
         private GUIStyle packGuideStyle;
+        private GUIStyle controlGuideStyle;
+        private GUIStyle controlGuideTitleStyle;
+        private GUIStyle controlGuideToggleStyle;
         private GUIStyle deckHeaderStyle;
         private GUIStyle discardButtonStyle;
         private GUIStyle discardPanelStyle;
         private GUIStyle discardMessageStyle;
         private GUIStyle deckRarityStyle;
+        private GUIStyle deckStatusStyle;
+        private GUIStyle deckInspectionStatusStyle;
         private Texture2D roundedDiscardTexture;
         private bool discardConfirmationVisible;
+        private bool settingsOpen;
+        private int uiLanguage;
+        private float masterVolume = 1f;
+        private bool controlGuideOpen = true;
+        private GUIStyle settingsTitleStyle;
+        private GUIStyle settingsLabelStyle;
+        private bool sharedResultMode;
+        private string shareFeedback;
+        private float shareFeedbackUntil;
 
-        private void Awake() { SetupScene(); BeginSequence(); }
+#if UNITY_WEBGL && !UNITY_EDITOR
+        [DllImport("__Internal")]
+        private static extern void CardOpenShareResult(string title, string text, string url);
+#endif
 
+        private void Awake()
+        {
+            LoadUserSettings();
+            SetupScene();
+            StartNewRun();
+            TryLoadSharedResultFromUrl();
+        }
+
+        private bool IsEnglishUi { get { return uiLanguage == 1; } }
+
+        private string Ui(string korean, string english)
+        {
+            return IsEnglishUi ? english : korean;
+        }
+
+        private void LoadUserSettings()
+        {
+            uiLanguage = Mathf.Clamp(PlayerPrefs.GetInt("CardOpen.UiLanguage", 0), 0, 1);
+            masterVolume = Mathf.Clamp01(PlayerPrefs.GetFloat("CardOpen.MasterVolume", 1f));
+            controlGuideOpen = PlayerPrefs.GetInt("CardOpen.ControlGuideOpen", 1) != 0;
+            AudioListener.volume = masterVolume;
+        }
+
+        private void SaveUserSettings()
+        {
+            PlayerPrefs.SetInt("CardOpen.UiLanguage", uiLanguage);
+            PlayerPrefs.SetFloat("CardOpen.MasterVolume", masterVolume);
+            PlayerPrefs.SetInt("CardOpen.ControlGuideOpen", controlGuideOpen ? 1 : 0);
+            PlayerPrefs.Save();
+        }
+
+        private void SetUiLanguage(int language)
+        {
+            int clamped = Mathf.Clamp(language, 0, 1);
+            if (uiLanguage == clamped) return;
+            uiLanguage = clamped;
+            SaveUserSettings();
+        }
+
+        private void SetMasterVolume(float volume)
+        {
+            float clamped = Mathf.Clamp01(volume);
+            if (Mathf.Approximately(masterVolume, clamped)) return;
+            masterVolume = clamped;
+            AudioListener.volume = masterVolume;
+            SaveUserSettings();
+        }
+        private void ShareCurrentResult()
+        {
+            string url = BuildSharedResultUrl();
+            if (string.IsNullOrEmpty(url))
+            {
+                shareFeedback = Ui("WebGL 빌드에서 공유할 수 있습니다.", "Sharing is available in the WebGL build.");
+                shareFeedbackUntil = Time.unscaledTime + 3f;
+                return;
+            }
+
+            string title = Ui("카드팩 결과", "Card Pack Result");
+            string message = Ui("총점 ", "Total score ") + totalScore.ToString("N0");
+#if UNITY_WEBGL && !UNITY_EDITOR
+            CardOpenShareResult(title, message, url);
+            shareFeedback = Ui("공유 창을 열었습니다.", "Share dialog opened.");
+#else
+            GUIUtility.systemCopyBuffer = url;
+            shareFeedback = Ui("공유 링크를 복사했습니다.", "Share link copied.");
+#endif
+            shareFeedbackUntil = Time.unscaledTime + 3f;
+        }
+
+        private string BuildSharedResultUrl()
+        {
+            string baseUrl = Application.absoluteURL;
+            if (string.IsNullOrWhiteSpace(baseUrl)) return string.Empty;
+            int hashIndex = baseUrl.IndexOf('#');
+            if (hashIndex >= 0) baseUrl = baseUrl.Substring(0, hashIndex);
+            int queryIndex = baseUrl.IndexOf('?');
+            if (queryIndex >= 0) baseUrl = baseUrl.Substring(0, queryIndex);
+
+            SharedResultData result = new SharedResultData
+            {
+                TotalScore = totalScore,
+                RoundScore = roundScore,
+                GoalIndex = currentGoalIndex,
+                CompletedPacks = completedPacks,
+                Cleared = phase == RevealPhase.RunCleared,
+                Deck = new SharedCardData[deckCards.Count]
+            };
+            for (int i = 0; i < deckCards.Count; i++) result.Deck[i] = CaptureSharedCard(deckCards[i]);
+            string json = JsonUtility.ToJson(result);
+            string payload = Convert.ToBase64String(Encoding.UTF8.GetBytes(json))
+                .TrimEnd('=').Replace('+', '-').Replace('/', '_');
+            return baseUrl + "?cardopenResult=" + Uri.EscapeDataString(payload);
+        }
+
+        private SharedCardData CaptureSharedCard(StoredCard card)
+        {
+            if (card == null || card.Data == null) return null;
+            SharedCardData data = new SharedCardData
+            {
+                ResourceName = card.Data.name,
+                Color = (int)card.Color,
+                Number = card.Number,
+                Rarity = (int)card.Rarity,
+                DeckSlot = card.DeckSlot,
+                CombinedCopies = card.CombinedCopies,
+                CombinedHolographicCopies = card.CombinedHolographicCopies,
+                IsHolographic = card.IsHolographic,
+                EquippedMagic = CaptureSharedCard(card.EquippedMagic),
+                EquippedWeapon = CaptureSharedCard(card.EquippedWeapon),
+                AccumulatedFlatScore = CaptureIntValues(card.AccumulatedFlatScoreByAbility),
+                RemainingDraws = CaptureIntValues(card.RemainingDrawsByAbility),
+                Stacks = CaptureIntValues(card.StackByAbilityCopy),
+                PerPackTriggers = CaptureIntValues(card.PerPackTriggerCountByAbility),
+                PacksElapsed = CaptureIntValues(card.PacksElapsedByAbility),
+                AccumulatedPercent = CaptureFloatValues(card.AccumulatedPercentByAbility)
+            };
+            data.InheritedRelics = new SharedCardData[card.InheritedRelics.Count];
+            for (int i = 0; i < card.InheritedRelics.Count; i++)
+                data.InheritedRelics[i] = CaptureSharedCard(card.InheritedRelics[i]);
+            return data;
+        }
+
+        private static SharedIntValue[] CaptureIntValues(Dictionary<int, int> source)
+        {
+            SharedIntValue[] values = new SharedIntValue[source.Count];
+            int index = 0;
+            foreach (KeyValuePair<int, int> pair in source)
+                values[index++] = new SharedIntValue { Key = pair.Key, Value = pair.Value };
+            return values;
+        }
+
+        private static SharedFloatValue[] CaptureFloatValues(Dictionary<int, float> source)
+        {
+            SharedFloatValue[] values = new SharedFloatValue[source.Count];
+            int index = 0;
+            foreach (KeyValuePair<int, float> pair in source)
+                values[index++] = new SharedFloatValue { Key = pair.Key, Value = pair.Value };
+            return values;
+        }
+
+        private bool TryLoadSharedResultFromUrl()
+        {
+            string payload = GetQueryValue(Application.absoluteURL, "cardopenResult");
+            if (string.IsNullOrEmpty(payload)) return false;
+            try
+            {
+                string normalized = Uri.UnescapeDataString(payload).Replace('-', '+').Replace('_', '/');
+                switch (normalized.Length % 4)
+                {
+                    case 2: normalized += "=="; break;
+                    case 3: normalized += "="; break;
+                }
+                string json = Encoding.UTF8.GetString(Convert.FromBase64String(normalized));
+                SharedResultData result = JsonUtility.FromJson<SharedResultData>(json);
+                if (result == null || result.Version != 1) return false;
+                RestoreSharedResult(result);
+                return true;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("Could not load shared card result: " + exception.Message);
+                return false;
+            }
+        }
+
+        private static string GetQueryValue(string url, string key)
+        {
+            if (string.IsNullOrEmpty(url)) return null;
+            int queryIndex = url.IndexOf('?');
+            if (queryIndex < 0 || queryIndex + 1 >= url.Length) return null;
+            int fragmentIndex = url.IndexOf('#', queryIndex + 1);
+            string query = fragmentIndex >= 0
+                ? url.Substring(queryIndex + 1, fragmentIndex - queryIndex - 1)
+                : url.Substring(queryIndex + 1);
+            string[] entries = query.Split('&');
+            for (int i = 0; i < entries.Length; i++)
+            {
+                int equalsIndex = entries[i].IndexOf('=');
+                string entryKey = equalsIndex >= 0 ? entries[i].Substring(0, equalsIndex) : entries[i];
+                if (!string.Equals(entryKey, key, StringComparison.Ordinal)) continue;
+                return equalsIndex >= 0 ? entries[i].Substring(equalsIndex + 1) : string.Empty;
+            }
+            return null;
+        }
+
+        private void RestoreSharedResult(SharedResultData result)
+        {
+            CloseDeckInspection();
+            ClearPackChoiceVisuals();
+            ClearCards();
+            for (int i = 0; i < deckVisuals.Count; i++)
+                if (deckVisuals[i] != null) Destroy(deckVisuals[i]);
+            deckVisuals.Clear();
+            deckCards.Clear();
+            if (pack != null) pack.gameObject.SetActive(false);
+            if (cardStack != null) cardStack.gameObject.SetActive(false);
+
+            totalScore = Mathf.Max(0, result.TotalScore);
+            roundScore = Mathf.Max(0, result.RoundScore);
+            currentGoalIndex = Mathf.Clamp(result.GoalIndex, 0, GoalScores.Length);
+            completedPacks = Mathf.Max(0, result.CompletedPacks);
+            pendingScore = 0;
+            pendingScoreCommitTime = -1f;
+            scoreTransferAmount = 0;
+            scoreTransferApplied = 0;
+            scoreTransferStartTime = -1f;
+            scorePopups.Clear();
+
+            global::CardData[] resources = Resources.LoadAll<global::CardData>(string.Empty);
+            Dictionary<string, global::CardData> lookup = new Dictionary<string, global::CardData>();
+            for (int i = 0; i < resources.Length; i++)
+                if (resources[i] != null && !lookup.ContainsKey(resources[i].name))
+                    lookup.Add(resources[i].name, resources[i]);
+            if (result.Deck != null)
+            {
+                for (int i = 0; i < result.Deck.Length && deckCards.Count < 5; i++)
+                {
+                    StoredCard card = RestoreSharedCard(result.Deck[i], lookup);
+                    if (card == null) continue;
+                    card.IsStoredInDeck = true;
+                    deckCards.Add(card);
+                    deckVisuals.Add(BuildDeckVisualForStoredCard(card));
+                }
+            }
+
+            sharedResultMode = true;
+            phase = result.Cleared ? RevealPhase.RunCleared : RevealPhase.GameOver;
+            RefreshDeckCardDisplayNames();
+            LayoutDeckVisuals();
+        }
+
+        private StoredCard RestoreSharedCard(SharedCardData source,
+            Dictionary<string, global::CardData> lookup)
+        {
+            if (source == null || string.IsNullOrEmpty(source.ResourceName)
+                || !lookup.TryGetValue(source.ResourceName, out global::CardData data)) return null;
+            StoredCard card = new StoredCard
+            {
+                Name = data.Name,
+                Data = data,
+                Rarity = (global::CardRarity)source.Rarity,
+                Color = (global::CardColor)source.Color,
+                Number = source.Number,
+                DeckSlot = source.DeckSlot,
+                CombinedCopies = Mathf.Max(1, source.CombinedCopies),
+                CombinedHolographicCopies = Mathf.Max(0, source.CombinedHolographicCopies),
+                IsHolographic = source.IsHolographic,
+                IsStoredInDeck = true
+            };
+            card.EquippedMagic = RestoreSharedCard(source.EquippedMagic, lookup);
+            card.EquippedWeapon = RestoreSharedCard(source.EquippedWeapon, lookup);
+            if (source.InheritedRelics != null)
+                for (int i = 0; i < source.InheritedRelics.Length; i++)
+                {
+                    StoredCard relic = RestoreSharedCard(source.InheritedRelics[i], lookup);
+                    if (relic != null) card.InheritedRelics.Add(relic);
+                }
+            RestoreIntValues(source.AccumulatedFlatScore, card.AccumulatedFlatScoreByAbility);
+            RestoreIntValues(source.RemainingDraws, card.RemainingDrawsByAbility);
+            RestoreIntValues(source.Stacks, card.StackByAbilityCopy);
+            RestoreIntValues(source.PerPackTriggers, card.PerPackTriggerCountByAbility);
+            RestoreIntValues(source.PacksElapsed, card.PacksElapsedByAbility);
+            RestoreFloatValues(source.AccumulatedPercent, card.AccumulatedPercentByAbility);
+            return card;
+        }
+
+        private static void RestoreIntValues(SharedIntValue[] source, Dictionary<int, int> target)
+        {
+            if (source == null) return;
+            for (int i = 0; i < source.Length; i++)
+                if (source[i] != null) target[source[i].Key] = source[i].Value;
+        }
+
+        private static void RestoreFloatValues(SharedFloatValue[] source, Dictionary<int, float> target)
+        {
+            if (source == null) return;
+            for (int i = 0; i < source.Length; i++)
+                if (source[i] != null) target[source[i].Key] = source[i].Value;
+        }
         private void LateUpdate()
         {
             UpdatePendingScore();
@@ -117,6 +522,10 @@ namespace CardOpen.Prototype
             if (font == null)
                 font = Font.CreateDynamicFontFromOSFont(new[] { "Malgun Gothic", "Arial Unicode MS", "Arial" }, 64);
             if (font == null) font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            SetupScorePopupAudio();
+            SetupAbilityEffectAudio();
+            SetupPackTearAudio();
+            SetupCardRarityAudio();
             Camera camera = Camera.main;
             if (camera == null)
             {
@@ -174,14 +583,183 @@ namespace CardOpen.Prototype
             tearVisual.Initialize(packMaterial);
         }
 
+        private void CompletePackAndBeginNextSequence()
+        {
+            CommitPendingScoreImmediately();
+            AdvanceDeckTransformationsAfterPack();
+            completedPacks++;
+            if (completedPacks % PacksPerGoal == 0)
+            {
+                int targetScore = GoalScores[currentGoalIndex];
+                if (roundScore < targetScore)
+                {
+                    phase = RevealPhase.GameOver;
+                    return;
+                }
+
+                currentGoalIndex++;
+                if (currentGoalIndex >= GoalScores.Length)
+                {
+                    phase = RevealPhase.RunCleared;
+                    return;
+                }
+
+                roundScore = 0;
+            }
+            BeginPackChoice();
+        }
+
+        private void StartNewRun()
+        {
+            sharedResultMode = false;
+            shareFeedback = null;
+            CloseDeckInspection();
+            ClearPackChoiceVisuals();
+            if (pack != null) pack.gameObject.SetActive(true);
+            if (cardStack != null) cardStack.gameObject.SetActive(true);
+            for (int i = 0; i < deckVisuals.Count; i++)
+                if (deckVisuals[i] != null) Destroy(deckVisuals[i]);
+            deckVisuals.Clear();
+            deckCards.Clear();
+            runeResonanceWasActive = false;
+            scorePopups.Clear();
+            totalScore = 0;
+            roundScore = 0;
+            pendingScore = 0;
+            pendingScoreCommitTime = -1f;
+            scoreTransferAmount = 0;
+            scoreTransferApplied = 0;
+            scoreTransferStartTime = -1f;
+            completedPacks = 0;
+            currentGoalIndex = 0;
+            currentPackOpenedForGoal = false;
+            previousRevealedCard = null;
+            pendingPackOpenNatureSources.Clear();
+            ClearNatureAbilityChain();
+            leftPackChoice = null;
+            rightPackChoice = null;
+            activePackData = Resources.Load<global::CardPackData>("CardPacks/TaleTail");
+            if (activePackData == null) activePackData = LoadCardPackData();
+            BeginSequence(false);
+        }
+
+        private void AdvanceDeckTransformationsAfterPack()
+        {
+            for (int i = 0; i < deckCards.Count; i++)
+            {
+                StoredCard card = deckCards[i];
+                if (card == null || card.Data == null || card.Data.DeckAbilities == null) continue;
+                for (int j = 0; j < card.Data.DeckAbilities.Count; j++)
+                {
+                    global::CardDeckAbility ability = card.Data.DeckAbilities[j];
+                    if (ability == null || ability.Effect != global::DeckAbilityEffect.TransformAfterPacks
+                        || ability.TransformedCard == null) continue;
+                    int requiredPacks = Mathf.Max(1, ability.PacksToTransform);
+                    card.PacksElapsedByAbility.TryGetValue(j, out int elapsedPacks);
+                    elapsedPacks++;
+                    card.PacksElapsedByAbility[j] = elapsedPacks;
+                    if (elapsedPacks < requiredPacks) continue;
+                    TransformStoredDeckCard(i, ability.TransformedCard);
+                    break;
+                }
+            }
+            LayoutDeckVisuals();
+        }
+
+        private void TransformStoredDeckCard(int deckIndex, global::CardData transformedData)
+        {
+            if (deckIndex < 0 || deckIndex >= deckCards.Count || transformedData == null) return;
+            StoredCard card = deckCards[deckIndex];
+            if (card == null) return;
+            card.Name = transformedData.Name;
+            card.Data = transformedData;
+            card.Rarity = transformedData.Rare;
+            card.AccumulatedPercentByAbility.Clear();
+            card.AccumulatedFlatScoreByAbility.Clear();
+            card.RemainingDrawsByAbility.Clear();
+            card.StackByAbilityCopy.Clear();
+            card.TriggeredStackCountsThisDraw.Clear();
+            card.UsedOncePerPackAbilityCopies.Clear();
+            card.PerPackTriggerCountByAbility.Clear();
+            card.PacksElapsedByAbility.Clear();
+
+            GameObject oldVisual = deckIndex < deckVisuals.Count ? deckVisuals[deckIndex] : null;
+            GameObject newVisual = BuildDeckVisualForStoredCard(card);
+            if (deckIndex < deckVisuals.Count) deckVisuals[deckIndex] = newVisual;
+            if (oldVisual != null) Destroy(oldVisual);
+        }
+
+        private GameObject BuildDeckVisualForStoredCard(StoredCard card)
+        {
+            if (card == null || card.Data == null || deckRoot == null) return null;
+            global::CardData data = card.Data;
+            GameObject cardObject = new GameObject("Stored Card - " + data.Name);
+            cardObject.transform.SetParent(deckRoot, false);
+            CardVisual visual = cardObject.AddComponent<CardVisual>();
+            string attributeKey = card.Color.ToString();
+            Material attributeMaterial = GetTextureMaterial("Attribute_" + attributeKey,
+                "CardAssets/Attributes/Attribute" + attributeKey, false);
+            Material rarityPatternMaterial = GetTextureMaterial("Pattern_" + data.RarityAssetKey,
+                "CardAssets/Rarities/Pattern" + data.RarityAssetKey, true, 0);
+            string costAsset = card.Number == 6 ? "CostSigma" : "Cost" + card.Number;
+            Material costMaterial = GetTextureMaterial("Cost_" + card.Number,
+                "CardAssets/Costs/" + costAsset, true, 20);
+            Material illustrationMaterial = GetTextureMaterial("CardImage_" + data.GetHashCode(), data.Image, true, 10);
+            visual.BuildFromData(data, card.Color, attributeMaterial,
+                GetTextureMaterial("CardBack", "CardAssets/Attributes/AttributeBackRemasterPurple", false),
+                rarityPatternMaterial, illustrationMaterial, costMaterial, font);
+            visual.SetDisplayName(GetStoredCardDisplayName(card));
+            visual.SetDisplayDescription(card.Data, GetStoredCardDisplayDescription(card));
+            if (card.IsHolographic) visual.EnableHologram();
+            visual.PrepareFaceUp(Vector3.zero, 1f, 0f);
+            visual.SetFaceDetailsVisible(true);
+            cardObject.SetActive(true);
+            SetStoredVisualShadowMode(cardObject);
+            return cardObject;
+        }
+
+        private bool RollCurrentPackHolographic()
+        {
+            if (Random.value < 0.01f) return true;
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
+            {
+                StoredCard owner = GetAbilityOwnerAt(i);
+                if (owner == null || owner.Data == null || owner.Data.DeckAbilities == null) continue;
+                int effectiveCopies = GetEffectiveDeckCopyCount(owner);
+                for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
+                {
+                    global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
+                    if (ability == null
+                        || ability.Effect != global::DeckAbilityEffect.GrantHologramChanceToPacksAndCards
+                        || ability.ChancePercent <= 0f) continue;
+                    for (int copy = 0; copy < effectiveCopies; copy++)
+                        if (Random.value < ability.ChancePercent * 0.01f) return true;
+                }
+            }
+            return false;
+        }
+
         private void BeginSequence()
         {
+            BeginSequence(true);
+        }
+
+        private void BeginSequence(bool chooseRandomPack)
+        {
+            currentPackOpenedForGoal = false;
+            if (chooseRandomPack)
+            {
+                global::CardPackData selectedPack = LoadCardPackData();
+                if (selectedPack != null) activePackData = selectedPack;
+            }
+            RefreshActivePackArtwork();
             ResetPerPackAccumulatedBonuses();
+            ResetOncePerPackAbilityUsage();
             ClearCards();
             cardStack.position = Vector3.zero;
             cardStack.rotation = Quaternion.identity;
             cardStack.localScale = Vector3.one;
-            currentPackIsHolographic = Random.value < 0.01f;
+            currentPackIsHolographic = RollCurrentPackHolographic();
             BuildHiddenCardStack();
             cardIndex = 0;
             gestureDragging = false;
@@ -288,29 +866,153 @@ namespace CardOpen.Prototype
             }
             return runtimeFallbackEntry;
         }
+        private void BeginPackChoice()
+        {
+            ClearCards();
+            ClearPackChoiceVisuals();
+            currentPackOpenedForGoal = false;
+            if (pack != null) pack.gameObject.SetActive(false);
+            if (cardStack != null) cardStack.gameObject.SetActive(false);
+            leftPackChoice = LoadCardPackData();
+            rightPackChoice = DrawAlternativePack(leftPackChoice);
+            if (leftPackChoice == null)
+            {
+                activePackData = Resources.Load<global::CardPackData>("CardPacks/TaleTail");
+                if (pack != null) pack.gameObject.SetActive(true);
+                if (cardStack != null) cardStack.gameObject.SetActive(true);
+                BeginSequence(false);
+                return;
+            }
+            if (rightPackChoice == null)
+            {
+                SelectPackChoice(leftPackChoice);
+                return;
+            }
+            CreatePackChoiceVisuals();
+            phase = RevealPhase.PackChoice;
+        }
+
+        private global::CardPackData DrawAlternativePack(global::CardPackData excludedPack)
+        {
+            for (int attempt = 0; attempt < 16; attempt++)
+            {
+                global::CardPackData candidate = LoadCardPackData();
+                if (candidate != null && candidate != excludedPack) return candidate;
+            }
+
+            if (randomPackPool == null)
+                randomPackPool = Resources.LoadAll<global::CardPackData>("CardPacks");
+            for (int i = 0; i < randomPackPool.Length; i++)
+                if (randomPackPool[i] != null && randomPackPool[i] != excludedPack)
+                    return randomPackPool[i];
+            return null;
+        }
+
+        private void SelectPackChoice(global::CardPackData selectedPack)
+        {
+            if (selectedPack == null) return;
+            ClearPackChoiceVisuals();
+            activePackData = selectedPack;
+            leftPackChoice = null;
+            rightPackChoice = null;
+            if (pack != null) pack.gameObject.SetActive(true);
+            if (cardStack != null) cardStack.gameObject.SetActive(true);
+            BeginSequence(false);
+        }
+
+        private void CreatePackChoiceVisuals()
+        {
+            leftPackChoiceVisual = CreatePackChoiceVisual(
+                "Left Pack Choice", leftPackChoice, new Vector3(-1.8f, 0.55f, -0.65f));
+            rightPackChoiceVisual = CreatePackChoiceVisual(
+                "Right Pack Choice", rightPackChoice, new Vector3(1.8f, 0.55f, -0.65f));
+        }
+
+        private PackVisual CreatePackChoiceVisual(
+            string objectName, global::CardPackData data, Vector3 position)
+        {
+            if (data == null) return null;
+
+            Texture2D frontTexture = data.FrontImage != null
+                ? data.FrontImage
+                : Resources.Load<Texture2D>("Textures/CardPackFrontStoryTailBlueSky");
+            Texture2D backTexture = data.BackImage != null
+                ? data.BackImage
+                : Resources.Load<Texture2D>("Textures/CardPackBackStoryTail");
+            Material frontMaterial = CreateTextureMaterial(objectName + " Front", frontTexture, false, 0);
+            Material backMaterial = CreateTextureMaterial(objectName + " Back", backTexture, false, 0);
+            packChoiceMaterials.Add(frontMaterial);
+            packChoiceMaterials.Add(backMaterial);
+
+            GameObject choiceObject = new GameObject(objectName);
+            choiceObject.transform.position = position;
+            choiceObject.transform.localScale = Vector3.one * 1.18f;
+            PackVisual choiceVisual = choiceObject.AddComponent<PackVisual>();
+            choiceVisual.Build(
+                GetMaterial("Pack", new Color(0.18f, 0.07f, 0.32f), 0.18f),
+                frontMaterial,
+                backMaterial);
+            return choiceVisual;
+        }
+
+        private void ClearPackChoiceVisuals()
+        {
+            if (leftPackChoiceVisual != null)
+            {
+                leftPackChoiceVisual.gameObject.SetActive(false);
+                Destroy(leftPackChoiceVisual.gameObject);
+                leftPackChoiceVisual = null;
+            }
+            if (rightPackChoiceVisual != null)
+            {
+                rightPackChoiceVisual.gameObject.SetActive(false);
+                Destroy(rightPackChoiceVisual.gameObject);
+                rightPackChoiceVisual = null;
+            }
+            for (int i = 0; i < packChoiceMaterials.Count; i++)
+            {
+                if (packChoiceMaterials[i] != null) Destroy(packChoiceMaterials[i]);
+            }
+            packChoiceMaterials.Clear();
+            ClearPackContentsPreview();
+            inspectedPackChoice = null;
+            packContentsScroll = Vector2.zero;
+        }
         private global::CardPackData LoadCardPackData()
         {
-            global::CardPackData farAndWide = Resources.Load<global::CardPackData>("CardPacks/FarAndWide");
-            if (farAndWide != null) return farAndWide;
+            if (packPoolData == null)
+                packPoolData = Resources.Load<global::CardPackPoolData>("CardPacks/CardPackPool");
+            if (packPoolData != null)
+                return packPoolData.DrawRandomPack();
 
-            global::CardPackData[] packs = Resources.LoadAll<global::CardPackData>(string.Empty);
-            return packs.Length > 0 ? packs[0] : null;
+            if (randomPackPool == null)
+                randomPackPool = Resources.LoadAll<global::CardPackData>("CardPacks");
+            if (randomPackPool.Length > 0)
+                return randomPackPool[Random.Range(0, randomPackPool.Length)];
+            return null;
+        }
+
+        private void RefreshActivePackArtwork()
+        {
+            if (materials.TryGetValue("PackFrontArtwork", out Material front))
+                ApplyTextureOrFallback(front, activePackData != null ? activePackData.FrontImage : null,
+                    Resources.Load<Texture2D>("Textures/CardPackFrontStoryTailBlueSky"));
+            if (materials.TryGetValue("PackBackArtwork", out Material back))
+                ApplyTextureOrFallback(back, activePackData != null ? activePackData.BackImage : null,
+                    Resources.Load<Texture2D>("Textures/CardPackBackStoryTail"));
         }
 
         public void SetCardPackData(global::CardPackData data)
         {
             activePackData = data;
-            if (materials.TryGetValue("PackFrontArtwork", out Material front))
-                ApplyTextureOrFallback(front, data != null ? data.FrontImage : null,
-                    Resources.Load<Texture2D>("Textures/CardPackFrontStoryTailBlueSky"));
-            if (materials.TryGetValue("PackBackArtwork", out Material back))
-                ApplyTextureOrFallback(back, data != null ? data.BackImage : null,
-                    Resources.Load<Texture2D>("Textures/CardPackBackStoryTail"));
-            if (pack != null) BeginSequence();
+            RefreshActivePackArtwork();
+            if (pack != null) BeginSequence(false);
         }
         private IEnumerator RemovePack(Vector2 direction)
         {
             phase = RevealPhase.Animating;
+            PlayPackTearSound();
+            currentPackOpenedForGoal = true;
             for (int i = 0; i < cards.Count; i++)
             {
                 cards[i].gameObject.SetActive(true);
@@ -319,7 +1021,9 @@ namespace CardOpen.Prototype
             cards[0].PrepareFaceUp(CardHome, RevealedCardScale, 0f);
             yield return tearVisual.PeelInDirection(direction, cardStack, CardHome, PackedCardOffset);
             pack.gameObject.SetActive(false);
+            TriggerPackOpenedDeckAbilities();
             yield return ReturnCardStackToFront();
+            PlayCardRarityRevealSound(currentPackCards[cardIndex].Rarity);
             AwardCurrentCardScore();
             phase = RevealPhase.CardFront;
         }
@@ -344,6 +1048,7 @@ namespace CardOpen.Prototype
         {
             phase = RevealPhase.Animating;
             yield return cards[cardIndex].RevealInPlace();
+            PlayCardRarityRevealSound(currentPackCards[cardIndex].Rarity);
             phase = RevealPhase.CardFront;
         }
 
@@ -355,6 +1060,7 @@ namespace CardOpen.Prototype
             float currentDirection = direction;
             while (true)
             {
+                CommitPendingScoreImmediately();
                 CardVisual current = cards[cardIndex];
                 if (cardIndex + 1 < cards.Count)
                 {
@@ -375,11 +1081,12 @@ namespace CardOpen.Prototype
                     cardTransitionActive = false;
                     queuedCardSwipes = 0;
                     yield return new WaitForSeconds(0.35f);
-                    BeginSequence();
+                    CompletePackAndBeginNextSequence();
                     yield break;
                 }
                 yield return cards[cardIndex].MoveToFront(CardHome, RevealedCardScale, 0f);
                 yield return RestoreCardStackRotation();
+                PlayCardRarityRevealSound(currentPackCards[cardIndex].Rarity);
                 AwardCurrentCardScore();
                 if (queuedCardSwipes <= 0) break;
                 queuedCardSwipes--;
@@ -414,19 +1121,45 @@ namespace CardOpen.Prototype
             float scale = Mathf.Min(Screen.width / width, Screen.height / height);
             float offsetX = (Screen.width - width * scale) * 0.5f;
             float offsetY = (Screen.height - height * scale) * 0.5f;
-            if (inspectedDeckIndex < 0)
+            if (settingsOpen)
             {
-                DrawScore(scale, offsetX, offsetY);
-                DrawDeck(scale, offsetX, offsetY);
-                DrawScorePopups(scale, offsetX, offsetY);
-                DrawPackTearGuide(scale, offsetX, offsetY);
+                DrawSettingsOverlay(scale, offsetX, offsetY);
+                return;
             }
-            else
+            if (inspectedPackChoice != null)
             {
-                DrawDeckInspectionControls(scale, offsetX, offsetY);
+                DrawActualPackContentsOverlay(scale, offsetX, offsetY);
+                return;
             }
+            if (DrawSettingsButton(scale, offsetX, offsetY)) return;
 
             Vector2 raw = Event.current.mousePosition;
+            if (inspectedDeckIndex >= 0)
+            {
+                DrawDeckInspectionControls(scale, offsetX, offsetY);
+                HandleDeckPointer(raw, Event.current);
+                return;
+            }
+
+            DrawScore(scale, offsetX, offsetY);
+            DrawControlGuide(scale, offsetX, offsetY);
+            DrawDeck(scale, offsetX, offsetY);
+            DrawScorePopups(scale, offsetX, offsetY);
+            DrawPackTearGuide(scale, offsetX, offsetY);
+
+            if (phase == RevealPhase.PackChoice)
+            {
+                DrawPackChoice(scale, offsetX, offsetY);
+                HandleDeckPointer(raw, Event.current);
+                return;
+            }
+            if (phase == RevealPhase.GameOver || phase == RevealPhase.RunCleared)
+            {
+                DrawRunEndOverlay(scale, offsetX, offsetY);
+                HandleDeckPointer(raw, Event.current);
+                return;
+            }
+            if (phase == RevealPhase.Pack && DrawActivePackContentsButton(scale, offsetX, offsetY)) return;
             if (HandleDeckPointer(raw, Event.current)) return;
             HandlePointer(new Vector2((raw.x - offsetX) / scale, (raw.y - offsetY) / scale), Event.current);
         }
@@ -662,22 +1395,26 @@ namespace CardOpen.Prototype
             switch (currentCard.Rarity)
             {
                 case global::CardRarity.Uncommon:
-                    earnedScore = 200; reason = "고급 카드"; popupColor = new Color(0.45f, 1f, 0.72f); break;
+                    earnedScore = 200; reason = Ui("\uACE0\uAE09 \uCE74\uB4DC", "Uncommon card"); popupColor = new Color(0.45f, 1f, 0.72f); break;
                 case global::CardRarity.Rare:
-                    earnedScore = 300; reason = "희귀 카드"; popupColor = new Color(0.72f, 0.88f, 1f); break;
+                    earnedScore = 300; reason = Ui("\uD76C\uADC0 \uCE74\uB4DC", "Rare card"); popupColor = new Color(0.72f, 0.88f, 1f); break;
                 case global::CardRarity.Epic:
-                    earnedScore = 500; reason = "영웅 카드"; popupColor = new Color(1f, 0.73f, 0.22f); break;
+                    earnedScore = 500; reason = Ui("\uC601\uC6C5 \uCE74\uB4DC", "Epic card"); popupColor = new Color(1f, 0.73f, 0.22f); break;
+                case global::CardRarity.Legendary:
+                    earnedScore = 500; reason = Ui("\uC804\uC124 \uCE74\uB4DC", "Legendary card"); popupColor = new Color(1f, 0.82f, 0.28f); break;
                 default:
-                    earnedScore = 100; reason = "일반 카드"; popupColor = Color.white; break;
+                    earnedScore = 100; reason = Ui("\uC77C\uBC18 \uCE74\uB4DC", "Common card"); popupColor = Color.white; break;
             }
 
             int baseCardScoreTotal = earnedScore * (currentCard.IsHolographic ? 2 : 1);
-            AddScorePopup("+" + earnedScore + "점\n" + reason, popupColor,
+            AddScorePopup("+" + earnedScore + Ui("\uC810\n", " pts\n") + reason, popupColor,
                 Time.unscaledTime, scorePopups.Count, earnedScore);
+            RegisterOtherCardScoreEvent(currentCard);
             if (currentCard.IsHolographic)
             {
-                AddScorePopup("+" + earnedScore + "점\n홀로그램!", new Color(0.55f, 0.9f, 1f),
+                AddScorePopup("+" + earnedScore + Ui("\uC810\n\uD640\uB85C\uADF8\uB7A8!", " pts\nHolographic!"), new Color(0.55f, 0.9f, 1f),
                     Time.unscaledTime + 0.22f, scorePopups.Count, earnedScore);
+                RegisterOtherCardScoreEvent(currentCard);
             }
             TriggerDeckAbilities(currentCard, baseCardScoreTotal);
             previousRevealedCard = currentCard;
@@ -685,23 +1422,51 @@ namespace CardOpen.Prototype
 
         private void TriggerDeckAbilities(StoredCard revealedCard, int baseCardScoreTotal)
         {
+            PrepareNatureAbilityChain(revealedCard);
+            TriggerPackCardGenerationAbilities(revealedCard);
+            PrepareStackBonusTriggers(revealedCard);
+            TriggerStackCardGenerationAbilities();
+            AccumulatePerPackEffects(revealedCard);
             int triggerRequirementCount = CountTriggeredDeckEffects(revealedCard);
             AccumulateDeckScoreBonuses(revealedCard, triggerRequirementCount);
             int triggeredCount = 0;
             int flatAbilityScoreTotal = 0;
 
-            for (int i = 0; i < deckCards.Count; i++)
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
             {
-                StoredCard abilityOwner = deckCards[i];
+                StoredCard abilityOwner = GetAbilityOwnerAt(i);
                 if (abilityOwner == null || abilityOwner.Data == null || abilityOwner.Data.DeckAbilities == null) continue;
                 int effectiveCopies = GetEffectiveDeckCopyCount(abilityOwner);
                 for (int j = 0; j < abilityOwner.Data.DeckAbilities.Count; j++)
                 {
                     global::CardDeckAbility ability = abilityOwner.Data.DeckAbilities[j];
-                    if (ability == null || !IsFlatScoreEffect(ability.Effect)
-                        || !DoesDeckAbilityTrigger(ability, abilityOwner, revealedCard, triggerRequirementCount)) continue;
+                    if (ability == null || !IsFlatScoreEffect(ability.Effect)) continue;
+                    if (ability.Effect == global::DeckAbilityEffect.AccumulateFlatScorePerDraw)
+                    {
+                        if (!abilityOwner.AccumulatedFlatScoreByAbility.TryGetValue(j, out int accumulatedFlatScore)
+                            || accumulatedFlatScore <= 0) continue;
+                        flatAbilityScoreTotal += accumulatedFlatScore;
+                        AddDeckAbilityPopup(abilityOwner, ability, accumulatedFlatScore, 0, triggeredCount++);
+                        continue;
+                    }
                     int flatScore = GetFlatDeckAbilityScore(ability, revealedCard);
                     if (flatScore <= 0) continue;
+
+                    if (ability.Effect == global::DeckAbilityEffect.TriggerScoreAtStackThreshold)
+                    {
+                        for (int copy = 0; copy < effectiveCopies; copy++)
+                        {
+                            int triggerCount = GetStackTriggerCount(abilityOwner, j, copy);
+                            for (int trigger = 0; trigger < triggerCount; trigger++)
+                            {
+                                flatAbilityScoreTotal += flatScore;
+                                AddDeckAbilityPopup(abilityOwner, ability, flatScore, copy, triggeredCount++);
+                            }
+                        }
+                        continue;
+                    }
+
+                    if (!DoesDeckAbilityTrigger(ability, abilityOwner, revealedCard, triggerRequirementCount)) continue;
                     for (int copy = 0; copy < effectiveCopies; copy++)
                     {
                         flatAbilityScoreTotal += flatScore;
@@ -712,18 +1477,52 @@ namespace CardOpen.Prototype
 
             int scoreBeforePercentageBonus = baseCardScoreTotal + flatAbilityScoreTotal;
             float scoreBonusEfficiency = GetScoreBonusEfficiencyMultiplier();
-            for (int i = 0; i < deckCards.Count; i++)
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
             {
-                StoredCard abilityOwner = deckCards[i];
+                StoredCard abilityOwner = GetAbilityOwnerAt(i);
                 if (abilityOwner == null || abilityOwner.Data == null || abilityOwner.Data.DeckAbilities == null) continue;
                 int effectiveCopies = GetEffectiveDeckCopyCount(abilityOwner);
                 for (int j = 0; j < abilityOwner.Data.DeckAbilities.Count; j++)
                 {
                     global::CardDeckAbility ability = abilityOwner.Data.DeckAbilities[j];
-                    if (ability == null || !DoesDeckAbilityTrigger(
-                            ability, abilityOwner, revealedCard, triggerRequirementCount)) continue;
+                    if (ability == null) continue;
+                    if (IsResonatingRuneAbility(abilityOwner, ability,
+                        global::DeckAbilityEffect.AddTriggeredScorePercent)) continue;
 
-                    if (ability.Effect == global::DeckAbilityEffect.AccumulateScoreBonusPerDraw)
+                    if (ability.Effect == global::DeckAbilityEffect.GrantTemporaryPercentForNextDraws)
+                    {
+                        if (!abilityOwner.RemainingDrawsByAbility.TryGetValue(j, out int remainingDraws)
+                            || remainingDraws <= 0 || ability.PercentBonus <= 0f) continue;
+                        int temporaryBonusScore = Mathf.RoundToInt(
+                            scoreBeforePercentageBonus * ability.PercentBonus * 0.01f * scoreBonusEfficiency);
+                        if (temporaryBonusScore > 0)
+                        {
+                            for (int copy = 0; copy < effectiveCopies; copy++)
+                                AddDeckAbilityPopup(abilityOwner, ability, temporaryBonusScore, copy, triggeredCount++);
+                        }
+                        abilityOwner.RemainingDrawsByAbility[j] = remainingDraws - 1;
+                        continue;
+                    }
+
+                    if (ability.Effect == global::DeckAbilityEffect.TriggerPercentAtStackThreshold
+                        || ability.Effect == global::DeckAbilityEffect.TriggerPercentEveryDrawCount)
+                    {
+                        if (ability.PercentBonus <= 0f) continue;
+                        int stackBonusScore = Mathf.RoundToInt(
+                            scoreBeforePercentageBonus * ability.PercentBonus * 0.01f * scoreBonusEfficiency);
+                        if (stackBonusScore <= 0) continue;
+                        for (int copy = 0; copy < effectiveCopies; copy++)
+                        {
+                            int triggerCount = GetStackTriggerCount(abilityOwner, j, copy);
+                            for (int trigger = 0; trigger < triggerCount; trigger++)
+                                AddDeckAbilityPopup(abilityOwner, ability, stackBonusScore, copy, triggeredCount++);
+                        }
+                        continue;
+                    }
+
+                    if (!DoesDeckAbilityTrigger(ability, abilityOwner, revealedCard, triggerRequirementCount)) continue;
+                    if (ability.Effect == global::DeckAbilityEffect.AccumulateScoreBonusPerDraw
+                        || ability.Effect == global::DeckAbilityEffect.AccumulatePercentAtStackThreshold)
                     {
                         if (!abilityOwner.AccumulatedPercentByAbility.TryGetValue(j, out float accumulatedPercent)
                             || accumulatedPercent <= 0f) continue;
@@ -740,19 +1539,116 @@ namespace CardOpen.Prototype
                         scoreBeforePercentageBonus * ability.PercentBonus * 0.01f * scoreBonusEfficiency);
                     if (bonusScore <= 0) continue;
                     for (int copy = 0; copy < effectiveCopies; copy++)
-                    {
                         AddDeckAbilityPopup(abilityOwner, ability, bonusScore, copy, triggeredCount++);
+                }
+            }
+
+            float runeResonancePercent = GetRuneResonanceValue(revealedCard,
+                global::DeckAbilityEffect.AddTriggeredScorePercent,
+                out StoredCard runePopupOwner, out global::CardDeckAbility runePopupAbility);
+            if (runeResonancePercent > 0f && runePopupOwner != null)
+            {
+                int runeBonusScore = Mathf.RoundToInt(
+                    scoreBeforePercentageBonus * runeResonancePercent * 0.01f * scoreBonusEfficiency);
+                if (runeBonusScore > 0)
+                    AddDeckAbilityPopup(runePopupOwner, runePopupAbility, runeBonusScore, 0, triggeredCount++);
+            }
+            ActivateTemporaryDrawBonuses(revealedCard);
+            ClearNatureAbilityChain();
+        }
+
+        private void PrepareNatureAbilityChain(StoredCard revealedCard)
+        {
+            ClearNatureAbilityChain();
+            foreach (StoredCard pendingSource in pendingPackOpenNatureSources)
+            {
+                if (pendingSource != null && pendingSource.Data != null
+                    && pendingSource.Data.HasTag(global::CardTag.Nature))
+                    naturallyTriggeredNatureOwners.Add(pendingSource);
+            }
+            pendingPackOpenNatureSources.Clear();
+            if (revealedCard != null)
+            {
+                for (int i = 0; i < GetAbilityOwnerCount(); i++)
+                {
+                    StoredCard owner = GetAbilityOwnerAt(i);
+                    if (owner == null || owner.Data == null
+                        || !owner.Data.HasTag(global::CardTag.Nature)
+                        || owner.Data.DeckAbilities == null) continue;
+                    for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
+                    {
+                        global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
+                        if (ability == null || !IsNatureChainEligibleEffect(ability.Effect)
+                            || !DoesDeckAbilityTriggerNormally(ability, owner, revealedCard)) continue;
+                        naturallyTriggeredNatureOwners.Add(owner);
+                        break;
                     }
+                }
+            }
+
+            if (naturallyTriggeredNatureOwners.Count == 0) return;
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
+            {
+                StoredCard owner = GetAbilityOwnerAt(i);
+                if (owner != null && owner.Data != null
+                    && owner.Data.HasTag(global::CardTag.Nature)
+                    && !naturallyTriggeredNatureOwners.Contains(owner)
+                    && HasNatureChainTargetAbility(owner.Data))
+                {
+                    natureAbilityChainActive = true;
+                    return;
                 }
             }
         }
 
+        private void ClearNatureAbilityChain()
+        {
+            natureAbilityChainActive = false;
+            naturallyTriggeredNatureOwners.Clear();
+        }
+
+        private static bool HasNatureChainTargetAbility(global::CardData data)
+        {
+            if (data == null || data.DeckAbilities == null) return false;
+            for (int i = 0; i < data.DeckAbilities.Count; i++)
+                if (IsNatureChainEligibleAbility(data.DeckAbilities[i])) return true;
+            return false;
+        }
+
+        private static bool IsNatureChainEligibleAbility(global::CardDeckAbility ability)
+        {
+            return ability != null && ability.CanBeTriggeredByNatureChain();
+        }
+
+        private static bool IsNatureChainEligibleEffect(global::DeckAbilityEffect effect)
+        {
+            return global::CardDeckAbility.IsNatureChainEffectSupported(effect);
+        }
+
+        private void ActivateTemporaryDrawBonuses(StoredCard revealedCard)
+        {
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
+            {
+                StoredCard owner = GetAbilityOwnerAt(i);
+                if (owner == null || owner.Data == null || owner.Data.DeckAbilities == null) continue;
+                for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
+                {
+                    global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
+                    if (ability == null
+                        || ability.Effect != global::DeckAbilityEffect.GrantTemporaryPercentForNextDraws
+                        || ability.DurationDrawCount <= 0
+                        || !DoesDeckAbilityTrigger(ability, owner, revealedCard)) continue;
+                    owner.RemainingDrawsByAbility.TryGetValue(j, out int remainingDraws);
+                    owner.RemainingDrawsByAbility[j] = remainingDraws + ability.DurationDrawCount;
+                }
+            }
+        }
         private int CountTriggeredDeckEffects(StoredCard revealedCard)
         {
             int count = 0;
-            for (int i = 0; i < deckCards.Count; i++)
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
             {
-                StoredCard owner = deckCards[i];
+                StoredCard owner = GetAbilityOwnerAt(i);
                 if (owner == null || owner.Data == null || owner.Data.DeckAbilities == null) continue;
                 int effectiveCopies = GetEffectiveDeckCopyCount(owner);
                 for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
@@ -760,6 +1656,39 @@ namespace CardOpen.Prototype
                     global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
                     if (ability == null || ability.Trigger == global::DeckAbilityTrigger.TriggeredEffectsAtLeastThree
                         || ability.Effect == global::DeckAbilityEffect.AddNextPackCards) continue;
+                    if (ability.Effect == global::DeckAbilityEffect.GrantTemporaryPercentForNextDraws)
+                    {
+                        if (owner.RemainingDrawsByAbility.TryGetValue(j, out int remainingDraws)
+                            && remainingDraws > 0 && ability.PercentBonus > 0f) count += effectiveCopies;
+                        continue;
+                    }
+                    if (ability.Effect == global::DeckAbilityEffect.AccumulateFlatScorePerDraw)
+                    {
+                        if (owner.AccumulatedFlatScoreByAbility.TryGetValue(j, out int accumulatedFlatScore)
+                            && accumulatedFlatScore > 0) count++;
+                        continue;
+                    }
+                    if (ability.Effect == global::DeckAbilityEffect.AccumulatePercentAtStackThreshold)
+                    {
+                        if (owner.AccumulatedPercentByAbility.TryGetValue(j, out float accumulatedPercent)
+                            && accumulatedPercent > 0f) count++;
+                        continue;
+                    }
+                    if (IsStackThresholdEffect(ability.Effect))
+                    {
+                        for (int copy = 0; copy < effectiveCopies; copy++)
+                            count += GetStackTriggerCount(owner, j, copy);
+                        continue;
+                    }
+                    if (ability.Effect == global::DeckAbilityEffect.AccumulateScoreBonusEfficiencyByNumber)
+                    {
+                        owner.AccumulatedPercentByAbility.TryGetValue(j, out float currentEfficiency);
+                        float maximumEfficiency = ability.MaximumPercent > 0f ? ability.MaximumPercent : 100f;
+                        if (ability.NumberMultiplier > 0 && currentEfficiency < maximumEfficiency
+                            && DoesDeckAbilityTrigger(ability, owner, revealedCard))
+                            count += effectiveCopies;
+                        continue;
+                    }
                     bool hasScoreValue = IsFlatScoreEffect(ability.Effect)
                         ? GetFlatDeckAbilityScore(ability, revealedCard) > 0
                         : (ability.Effect == global::DeckAbilityEffect.AddTriggeredScorePercent
@@ -771,20 +1700,132 @@ namespace CardOpen.Prototype
             }
             return count;
         }
-        private void AccumulateDeckScoreBonuses(StoredCard revealedCard, int triggerRequirementCount)
+
+        private void PrepareStackBonusTriggers(StoredCard revealedCard)
         {
-            for (int i = 0; i < deckCards.Count; i++)
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
             {
-                StoredCard owner = deckCards[i];
+                StoredCard owner = GetAbilityOwnerAt(i);
+                if (owner == null) continue;
+                owner.TriggeredStackCountsThisDraw.Clear();
+                if (owner.Data == null || owner.Data.DeckAbilities == null) continue;
+                int effectiveCopies = GetEffectiveDeckCopyCount(owner);
+                for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
+                {
+                    global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
+                    bool countsDraws = ability != null
+                        && ability.Effect == global::DeckAbilityEffect.TriggerPercentEveryDrawCount;
+                    if (ability == null || !IsStackThresholdEffect(ability.Effect)
+                        || ability.StackThreshold <= 0 || (!countsDraws && ability.NumberMultiplier <= 0)
+                        || !DoesDeckAbilityTrigger(ability, owner, revealedCard)) continue;
+                    int gainedStacks = countsDraws
+                        ? 1
+                        : Mathf.Max(0, revealedCard.Number * ability.NumberMultiplier);
+                    int preparedTriggerCount = 0;
+                    owner.PerPackTriggerCountByAbility.TryGetValue(j, out int usedThisPack);
+                    for (int copy = 0; copy < effectiveCopies; copy++)
+                    {
+                        int stackKey = GetAbilityCopyKey(j, copy);
+                        owner.StackByAbilityCopy.TryGetValue(stackKey, out int currentStacks);
+                        int nextStacks = currentStacks + gainedStacks;
+                        int triggerCount = nextStacks / ability.StackThreshold;
+                        if (ability.Effect == global::DeckAbilityEffect.AddSpecificCardAtStackThreshold
+                            && ability.MaxTriggersPerPack > 0)
+                        {
+                            int availableTriggers = Mathf.Max(0,
+                                ability.MaxTriggersPerPack - usedThisPack - preparedTriggerCount);
+                            triggerCount = Mathf.Min(triggerCount, availableTriggers);
+                            owner.StackByAbilityCopy[stackKey] =
+                                nextStacks - triggerCount * ability.StackThreshold;
+                        }
+                        else
+                        {
+                            owner.StackByAbilityCopy[stackKey] = nextStacks % ability.StackThreshold;
+                        }
+                        if (triggerCount <= 0) continue;
+                        owner.TriggeredStackCountsThisDraw[stackKey] = triggerCount;
+                        preparedTriggerCount += triggerCount;
+                    }
+                }
+            }
+        }
+        private void AccumulatePerPackEffects(StoredCard revealedCard)
+        {
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
+            {
+                StoredCard owner = GetAbilityOwnerAt(i);
                 if (owner == null || owner.Data == null || owner.Data.DeckAbilities == null) continue;
                 int effectiveCopies = GetEffectiveDeckCopyCount(owner);
                 for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
                 {
                     global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
-                    if (ability == null || ability.Effect != global::DeckAbilityEffect.AccumulateScoreBonusPerDraw
-                        || ability.PercentBonus <= 0f
+                    if (ability == null) continue;
+                    if (ability.Effect == global::DeckAbilityEffect.AccumulateFlatScorePerDraw)
+                    {
+                        if (ability.Score <= 0 || !DoesDeckAbilityTrigger(ability, owner, revealedCard)) continue;
+                        owner.AccumulatedFlatScoreByAbility.TryGetValue(j, out int accumulatedScore);
+                        owner.AccumulatedFlatScoreByAbility[j] =
+                            accumulatedScore + ability.Score * effectiveCopies;
+                        continue;
+                    }
+
+                    if (ability.Effect != global::DeckAbilityEffect.AccumulatePercentAtStackThreshold
+                        || ability.PercentBonus <= 0f) continue;
+                    int totalTriggerCount = 0;
+                    for (int copy = 0; copy < effectiveCopies; copy++)
+                        totalTriggerCount += GetStackTriggerCount(owner, j, copy);
+                    if (totalTriggerCount <= 0) continue;
+                    owner.AccumulatedPercentByAbility.TryGetValue(j, out float accumulatedPercent);
+                    owner.AccumulatedPercentByAbility[j] =
+                        accumulatedPercent + ability.PercentBonus * totalTriggerCount;
+                }
+            }
+        }
+        private static bool IsStackThresholdEffect(global::DeckAbilityEffect effect)
+        {
+            return effect == global::DeckAbilityEffect.TriggerPercentAtStackThreshold
+                || effect == global::DeckAbilityEffect.TriggerScoreAtStackThreshold
+                || effect == global::DeckAbilityEffect.AccumulatePercentAtStackThreshold
+                || effect == global::DeckAbilityEffect.AddSpecificCardAtStackThreshold
+                || effect == global::DeckAbilityEffect.TriggerPercentEveryDrawCount;
+        }
+
+        private static int GetStackTriggerCount(StoredCard owner, int abilityIndex, int copyIndex)
+        {
+            if (owner == null) return 0;
+            owner.TriggeredStackCountsThisDraw.TryGetValue(
+                GetAbilityCopyKey(abilityIndex, copyIndex), out int triggerCount);
+            return Mathf.Max(0, triggerCount);
+        }
+
+        private static int GetAbilityCopyKey(int abilityIndex, int copyIndex)
+        {
+            return abilityIndex * 100 + copyIndex;
+        }
+        private void AccumulateDeckScoreBonuses(StoredCard revealedCard, int triggerRequirementCount)
+        {
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
+            {
+                StoredCard owner = GetAbilityOwnerAt(i);
+                if (owner == null || owner.Data == null || owner.Data.DeckAbilities == null) continue;
+                int effectiveCopies = GetEffectiveDeckCopyCount(owner);
+                for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
+                {
+                    global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
+                    if (ability == null
                         || !DoesDeckAbilityTrigger(ability, owner, revealedCard, triggerRequirementCount)) continue;
                     owner.AccumulatedPercentByAbility.TryGetValue(j, out float accumulatedPercent);
+                    if (ability.Effect == global::DeckAbilityEffect.AccumulateScoreBonusEfficiencyByNumber)
+                    {
+                        if (ability.NumberMultiplier <= 0) continue;
+                        float gainedEfficiency = revealedCard.Number * ability.NumberMultiplier * effectiveCopies;
+                        float maximumEfficiency = ability.MaximumPercent > 0f ? ability.MaximumPercent : 100f;
+                        owner.AccumulatedPercentByAbility[j] =
+                            Mathf.Min(maximumEfficiency, accumulatedPercent + gainedEfficiency);
+                        continue;
+                    }
+                    if (ability.Effect != global::DeckAbilityEffect.AccumulateScoreBonusPerDraw
+                        || ability.PercentBonus <= 0f) continue;
                     owner.AccumulatedPercentByAbility[j] =
                         accumulatedPercent + ability.PercentBonus * effectiveCopies;
                 }
@@ -794,7 +1835,9 @@ namespace CardOpen.Prototype
         private static bool IsFlatScoreEffect(global::DeckAbilityEffect effect)
         {
             return effect == global::DeckAbilityEffect.AddScore
-                || effect == global::DeckAbilityEffect.AddRevealedNumberTimesScore;
+                || effect == global::DeckAbilityEffect.AddRevealedNumberTimesScore
+                || effect == global::DeckAbilityEffect.TriggerScoreAtStackThreshold
+                || effect == global::DeckAbilityEffect.AccumulateFlatScorePerDraw;
         }
 
         private static int GetFlatDeckAbilityScore(global::CardDeckAbility ability, StoredCard revealedCard)
@@ -804,28 +1847,192 @@ namespace CardOpen.Prototype
             return Mathf.Max(0, ability.Score);
         }
 
-        private void ResetPerPackAccumulatedBonuses()
+        private void ResetOncePerPackAbilityUsage()
         {
-            for (int i = 0; i < deckCards.Count; i++)
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
             {
-                StoredCard owner = deckCards[i];
+                StoredCard owner = GetAbilityOwnerAt(i);
+                if (owner == null) continue;
+                owner.UsedOncePerPackAbilityCopies.Clear();
+                owner.PerPackTriggerCountByAbility.Clear();
+            }
+        }
+
+        private void TriggerPackCardGenerationAbilities(StoredCard revealedCard)
+        {
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
+            {
+                StoredCard owner = GetAbilityOwnerAt(i);
                 if (owner == null || owner.Data == null || owner.Data.DeckAbilities == null) continue;
+                int effectiveCopies = GetEffectiveDeckCopyCount(owner);
                 for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
                 {
                     global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
-                    if (ability != null && ability.Effect == global::DeckAbilityEffect.AccumulateScoreBonusPerDraw
-                        && ability.ResetAccumulationAfterPack)
-                        owner.AccumulatedPercentByAbility.Remove(j);
+                    if (ability == null || ability.Effect != global::DeckAbilityEffect.AddRandomCommonCardToPackEnd
+                        || !DoesDeckAbilityTrigger(ability, owner, revealedCard)) continue;
+                    for (int copy = 0; copy < effectiveCopies; copy++)
+                    {
+                        int usageKey = GetAbilityCopyKey(j, copy);
+                        if (owner.UsedOncePerPackAbilityCopies.Contains(usageKey)) continue;
+                        if (!AppendRandomCommonCardToCurrentPack()) continue;
+                        owner.UsedOncePerPackAbilityCopies.Add(usageKey);
+                    }
                 }
             }
         }
 
+        private void TriggerStackCardGenerationAbilities()
+        {
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
+            {
+                StoredCard owner = GetAbilityOwnerAt(i);
+                if (owner == null || owner.Data == null || owner.Data.DeckAbilities == null) continue;
+                int effectiveCopies = GetEffectiveDeckCopyCount(owner);
+                for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
+                {
+                    global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
+                    if (ability == null
+                        || ability.Effect != global::DeckAbilityEffect.AddSpecificCardAtStackThreshold
+                        || ability.GeneratedCard == null) continue;
+                    owner.PerPackTriggerCountByAbility.TryGetValue(j, out int usedThisPack);
+                    int maximumTriggers = ability.MaxTriggersPerPack > 0
+                        ? ability.MaxTriggersPerPack
+                        : int.MaxValue;
+                    for (int copy = 0; copy < effectiveCopies && usedThisPack < maximumTriggers; copy++)
+                    {
+                        int triggerCount = GetStackTriggerCount(owner, j, copy);
+                        for (int trigger = 0; trigger < triggerCount && usedThisPack < maximumTriggers; trigger++)
+                        {
+                            if (!AppendSpecificCardToCurrentPack(ability.GeneratedCard)) break;
+                            usedThisPack++;
+                        }
+                    }
+                    owner.PerPackTriggerCountByAbility[j] = usedThisPack;
+                }
+            }
+        }
+
+        private bool AppendRandomCommonCardToCurrentPack()
+        {
+            global::CardPackEntry entry = DrawCommonCard();
+            return AppendCardToCurrentPack(entry);
+        }
+
+        private bool AppendRandomTaggedCardToCurrentPack(global::CardTag tag)
+        {
+            if (activePackData == null) return false;
+            global::CardPackEntry entry = activePackData.DrawRandomCard(tag);
+            return AppendCardToCurrentPack(entry);
+        }
+
+        private bool AppendSpecificCardToCurrentPack(global::CardData data)
+        {
+            if (data == null) return false;
+            return AppendCardToCurrentPack(new global::CardPackEntry
+            {
+                Card = data,
+                Number = Random.Range(1, 7),
+                Color = (global::CardColor)Random.Range(0, 5),
+                InclusionRate = 100f
+            });
+        }
+
+        private bool AppendCardToCurrentPack(global::CardPackEntry entry)
+        {
+            if (entry == null || entry.Card == null) return false;
+            global::CardData data = entry.Card;
+            int index = cards.Count;
+
+            GameObject cardObject = new GameObject("Card - " + data.Name + " (Generated)");
+            cardObject.transform.SetParent(cardStack, true);
+            CardVisual visual = cardObject.AddComponent<CardVisual>();
+            Material attributeMaterial = GetTextureMaterial("Attribute_" + entry.AttributeAssetKey,
+                "CardAssets/Attributes/Attribute" + entry.AttributeAssetKey, false);
+            Material rarityPatternMaterial = GetTextureMaterial("Pattern_" + data.RarityAssetKey,
+                "CardAssets/Rarities/Pattern" + data.RarityAssetKey, true, 0);
+            string costAsset = entry.DisplayNumber == 6 ? "CostSigma" : "Cost" + entry.DisplayNumber;
+            Material costMaterial = GetTextureMaterial("Cost_" + entry.DisplayNumber,
+                "CardAssets/Costs/" + costAsset, true, 20);
+            Material illustrationMaterial = GetTextureMaterial("CardImage_" + data.GetHashCode(), data.Image, true, 10);
+            visual.BuildFromData(data, entry.Color, attributeMaterial,
+                GetTextureMaterial("CardBack", "CardAssets/Attributes/AttributeBackRemasterPurple", false),
+                rarityPatternMaterial, illustrationMaterial, costMaterial, font);
+            bool isHolographic = currentPackIsHolographic || Random.value < 0.1f;
+            if (isHolographic) visual.EnableHologram();
+            visual.PrepareFaceUp(CardHome + new Vector3(0f, index * 0.025f, index * 0.065f),
+                RevealedCardScale, index * 0.35f);
+            // Cards generated by deck abilities are appended after the pack is already open.
+            // Keep them visible immediately so the physical card stack grows at trigger time.
+            visual.gameObject.SetActive(true);
+            visual.SetFaceDetailsVisible(true);
+            cards.Add(visual);
+            currentPackCards.Add(new StoredCard
+            {
+                Name = data.Name,
+                Data = data,
+                Rarity = data.Rare,
+                Color = entry.Color,
+                Number = entry.DisplayNumber,
+                IsHolographic = isHolographic
+            });
+            return true;
+        }
+        private global::CardPackEntry DrawCommonCard()
+        {
+            if (activePackData != null)
+            {
+                global::CardPackEntry entry = activePackData.DrawRandomCard(global::CardRarity.Common);
+                if (entry != null) return entry;
+            }
+
+            if (fallbackCards == null || fallbackCards.Length == 0)
+                fallbackCards = Resources.LoadAll<global::CardData>(string.Empty);
+            int commonCount = 0;
+            for (int i = 0; fallbackCards != null && i < fallbackCards.Length; i++)
+                if (fallbackCards[i] != null && fallbackCards[i].Rare == global::CardRarity.Common) commonCount++;
+            if (commonCount <= 0) return null;
+            int selectedIndex = Random.Range(0, commonCount);
+            for (int i = 0; i < fallbackCards.Length; i++)
+            {
+                global::CardData card = fallbackCards[i];
+                if (card == null || card.Rare != global::CardRarity.Common) continue;
+                if (selectedIndex-- > 0) continue;
+                return new global::CardPackEntry
+                {
+                    Card = card,
+                    Number = Random.Range(1, 7),
+                    Color = (global::CardColor)Random.Range(0, 5),
+                    InclusionRate = 100f
+                };
+            }
+            return null;
+        }
+
+        private void ResetPerPackAccumulatedBonuses()
+        {
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
+            {
+                StoredCard owner = GetAbilityOwnerAt(i);
+                if (owner == null || owner.Data == null || owner.Data.DeckAbilities == null) continue;
+                for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
+                {
+                    global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
+                    if (ability == null || !ability.ResetAccumulationAfterPack) continue;
+                    if (ability.Effect == global::DeckAbilityEffect.AccumulateScoreBonusPerDraw
+                        || ability.Effect == global::DeckAbilityEffect.AccumulatePercentAtStackThreshold
+                        || ability.Effect == global::DeckAbilityEffect.AccumulateScoreBonusEfficiencyByNumber)
+                        owner.AccumulatedPercentByAbility.Remove(j);
+                    if (ability.Effect == global::DeckAbilityEffect.AccumulateFlatScorePerDraw)
+                        owner.AccumulatedFlatScoreByAbility.Remove(j);
+                }
+            }
+        }
         private int GetAdditionalNextPackCardCount()
         {
             int additionalCards = 0;
-            for (int i = 0; i < deckCards.Count; i++)
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
             {
-                StoredCard owner = deckCards[i];
+                StoredCard owner = GetAbilityOwnerAt(i);
                 if (owner == null || owner.Data == null || owner.Data.DeckAbilities == null) continue;
                 for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
                 {
@@ -836,18 +2043,67 @@ namespace CardOpen.Prototype
             }
             return additionalCards;
         }
-        private void ApplyDeckCardTransformEffects(StoredCard revealedCard)
+        private void TriggerPackOpenedDeckAbilities()
         {
-            if (revealedCard == null || revealedCard.IsHolographic) return;
-            for (int i = 0; i < deckCards.Count; i++)
+            int triggeredCount = 0;
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
             {
-                StoredCard owner = deckCards[i];
+                StoredCard owner = GetAbilityOwnerAt(i);
                 if (owner == null || owner.Data == null || owner.Data.DeckAbilities == null) continue;
                 int effectiveCopies = GetEffectiveDeckCopyCount(owner);
                 for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
                 {
                     global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
-                    if (ability == null || ability.Effect != global::DeckAbilityEffect.GrantHologramChance
+                    if (ability == null) continue;
+                    if (ability.Effect == global::DeckAbilityEffect.AddNextPackCards)
+                    {
+                        if (ability.PackCardCount <= 0) continue;
+                        if (owner.Data.HasTag(global::CardTag.Nature))
+                            pendingPackOpenNatureSources.Add(owner);
+                        continue;
+                    }
+                    if (ability.Effect == global::DeckAbilityEffect.AddRandomTaggedCardOnPackOpen)
+                    {
+                        int cardsPerCopy = Mathf.Max(1, ability.PackCardCount);
+                        for (int copy = 0; copy < effectiveCopies; copy++)
+                            for (int generated = 0; generated < cardsPerCopy; generated++)
+                                AppendRandomTaggedCardToCurrentPack(ability.GeneratedCardTag);
+                        continue;
+                    }
+                    if (ability.Effect != global::DeckAbilityEffect.AddScoreOnPackOpen
+                        || ability.Score <= 0) continue;
+                    for (int copy = 0; copy < effectiveCopies; copy++)
+                        AddDeckAbilityPopup(owner, ability, ability.Score, copy, triggeredCount++);
+                }
+            }
+        }
+
+        private void ApplyDeckCardTransformEffects(StoredCard revealedCard)
+        {
+            if (revealedCard == null || revealedCard.IsHolographic) return;
+            float runeHologramChance = GetRuneResonanceValue(revealedCard,
+                global::DeckAbilityEffect.GrantHologramChance,
+                out StoredCard runePopupOwner, out global::CardDeckAbility runePopupAbility);
+            if (runeHologramChance > 0f && Random.value < Mathf.Min(100f, runeHologramChance) * 0.01f)
+            {
+                revealedCard.IsHolographic = true;
+                if (cardIndex >= 0 && cardIndex < cards.Count) cards[cardIndex].EnableHologram();
+                return;
+            }
+
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
+            {
+                StoredCard owner = GetAbilityOwnerAt(i);
+                if (owner == null || owner.Data == null || owner.Data.DeckAbilities == null) continue;
+                int effectiveCopies = GetEffectiveDeckCopyCount(owner);
+                for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
+                {
+                    global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
+                    if (ability == null
+                        || IsResonatingRuneAbility(owner, ability,
+                            global::DeckAbilityEffect.GrantHologramChance)
+                        || (ability.Effect != global::DeckAbilityEffect.GrantHologramChance
+                            && ability.Effect != global::DeckAbilityEffect.GrantHologramChanceToPacksAndCards)
                         || ability.ChancePercent <= 0f || !DoesDeckAbilityTrigger(ability, owner, revealedCard)) continue;
                     for (int copy = 0; copy < effectiveCopies; copy++)
                     {
@@ -863,15 +2119,22 @@ namespace CardOpen.Prototype
         private float GetScoreBonusEfficiencyMultiplier()
         {
             float addedEfficiency = 0f;
-            for (int i = 0; i < deckCards.Count; i++)
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
             {
-                StoredCard owner = deckCards[i];
+                StoredCard owner = GetAbilityOwnerAt(i);
                 if (owner == null || owner.Data == null || owner.Data.DeckAbilities == null) continue;
                 int effectiveCopies = GetEffectiveDeckCopyCount(owner);
                 for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
                 {
                     global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
-                    if (ability == null || ability.Effect != global::DeckAbilityEffect.IncreaseScoreBonusEfficiency
+                    if (ability == null) continue;
+                    if (ability.Effect == global::DeckAbilityEffect.AccumulateScoreBonusEfficiencyByNumber)
+                    {
+                        owner.AccumulatedPercentByAbility.TryGetValue(j, out float accumulatedEfficiency);
+                        addedEfficiency += Mathf.Max(0f, accumulatedEfficiency) * 0.01f;
+                        continue;
+                    }
+                    if (ability.Effect != global::DeckAbilityEffect.IncreaseScoreBonusEfficiency
                         || ability.PercentBonus <= 0f) continue;
                     addedEfficiency += ability.PercentBonus * 0.01f * effectiveCopies;
                 }
@@ -879,26 +2142,339 @@ namespace CardOpen.Prototype
             return 1f + addedEfficiency;
         }
 
-        private void AddDeckAbilityPopup(StoredCard owner, global::CardDeckAbility ability, int score,            int copyIndex, int triggeredIndex)
+        private void AddDeckAbilityPopup(StoredCard owner, global::CardDeckAbility ability, int score,
+            int copyIndex, int triggeredIndex, bool countForOtherCardScoreEvents = true)
         {
-            string ownerReason = owner.Name;
-            if (copyIndex > 0) ownerReason += " 홀로그램";
-            AddScorePopup(ownerReason + "  +" + score + "점",
+            string ownerReason = (IsNatureChainForcedTrigger(owner, ability) ? "자연-" : string.Empty)
+                + GetStoredCardDisplayName(owner);
+            if (copyIndex > 0) ownerReason += Ui(" \uD640\uB85C\uADF8\uB7A8", " Holographic");
+            AddScorePopup(ownerReason + "  +" + score + Ui("\uC810", " pts"),
                 copyIndex > 0 ? new Color(0.55f, 0.9f, 1f) : new Color(0.66f, 1f, 0.48f),
                 Time.unscaledTime + triggeredIndex * 0.16f, 1 + triggeredIndex % 4, score);
+            if (countForOtherCardScoreEvents)
+                RegisterOtherCardScoreEvent(owner);
+        }
+
+        private void RegisterOtherCardScoreEvent(StoredCard scoringOwner)
+        {
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
+            {
+                StoredCard listener = GetAbilityOwnerAt(i);
+                if (listener == null || object.ReferenceEquals(listener, scoringOwner)
+                    || listener.Data == null || listener.Data.DeckAbilities == null) continue;
+                int effectiveCopies = GetEffectiveDeckCopyCount(listener);
+                for (int abilityIndex = 0; abilityIndex < listener.Data.DeckAbilities.Count; abilityIndex++)
+                {
+                    global::CardDeckAbility ability = listener.Data.DeckAbilities[abilityIndex];
+                    if (ability == null
+                        || ability.Effect != global::DeckAbilityEffect.AddScoreEveryOtherCardScoreEvents
+                        || ability.Score <= 0) continue;
+                    int threshold = Mathf.Max(1, ability.StackThreshold);
+                    for (int copy = 0; copy < effectiveCopies; copy++)
+                    {
+                        int stackKey = GetAbilityCopyKey(abilityIndex, copy);
+                        listener.StackByAbilityCopy.TryGetValue(stackKey, out int currentStack);
+                        currentStack++;
+                        int triggerCount = currentStack / threshold;
+                        listener.StackByAbilityCopy[stackKey] = currentStack % threshold;
+                        for (int trigger = 0; trigger < triggerCount; trigger++)
+                        {
+                            AddDeckAbilityPopup(listener, ability, ability.Score, copy,
+                                scorePopups.Count, false);
+                        }
+                    }
+                }
+            }
         }
 
         private void AddScorePopup(string text, Color color, float startTime, int lane, int score)
         {
+            const float baseSameLaneSpacing = 1.36f;
+            int normalizedLane = ((lane % ScorePopupTrailCapacity) + ScorePopupTrailCapacity)
+                % ScorePopupTrailCapacity;
+            float scheduledStartTime = startTime;
+            if (scorePopups.Count >= ScorePopupTrailCapacity)
+            {
+                int oldestIndex = 0;
+                for (int i = 1; i < scorePopups.Count; i++)
+                {
+                    if (scorePopups[i].StartTime < scorePopups[oldestIndex].StartTime)
+                        oldestIndex = i;
+                }
+
+                ScorePopup oldest = scorePopups[oldestIndex];
+                normalizedLane = oldest.Lane;
+                if (!oldest.AddedToPendingScore)
+                {
+                    oldest.AddedToPendingScore = true;
+                    pendingScore += oldest.Score;
+                }
+                scorePopups.RemoveAt(oldestIndex);
+                scheduledStartTime = Time.unscaledTime;
+            }
+            else
+            {
+                for (int i = 0; i < scorePopups.Count; i++)
+                {
+                    ScorePopup existing = scorePopups[i];
+                    existing.PlaybackSpeed = Mathf.Max(existing.PlaybackSpeed, 2f);
+                    if (existing.Lane != normalizedLane) continue;
+                    float laneSpacing = baseSameLaneSpacing / existing.PlaybackSpeed;
+                    scheduledStartTime = Mathf.Max(scheduledStartTime, existing.StartTime + laneSpacing);
+                }
+            }
+
             scorePopups.Add(new ScorePopup
             {
                 Text = text,
                 Color = color,
-                StartTime = startTime,
-                Lane = lane,
+                StartTime = scheduledStartTime,
+                Lane = normalizedLane,
                 Score = Mathf.Max(0, score)
             });
-            pendingScoreCommitTime = Mathf.Max(pendingScoreCommitTime, startTime + 0.2f);
+            pendingScoreCommitTime = Mathf.Max(pendingScoreCommitTime, scheduledStartTime + 0.2f);
+        }
+
+        private void CommitPendingScoreImmediately()
+        {
+            float now = Time.unscaledTime;
+            for (int i = 0; i < scorePopups.Count; i++)
+            {
+                ScorePopup popup = scorePopups[i];
+                float visualAge = (now - popup.StartTime) * Mathf.Max(1f, popup.PlaybackSpeed);
+                popup.PlaybackSpeed = 4f;
+                popup.StartTime = now - visualAge / popup.PlaybackSpeed;
+                if (popup.AddedToPendingScore) continue;
+                popup.AddedToPendingScore = true;
+                pendingScore += popup.Score;
+            }
+
+            int remainingScore = Mathf.Max(0, pendingScore - scoreTransferApplied);
+            totalScore += remainingScore;
+            roundScore += remainingScore;
+            pendingScore = 0;
+            pendingScoreCommitTime = -1f;
+            scoreTransferAmount = 0;
+            scoreTransferApplied = 0;
+            scoreTransferStartTime = -1f;
+        }
+
+        private void SetupCardRarityAudio()
+        {
+            cardRarityAudioSource = gameObject.AddComponent<AudioSource>();
+            cardRarityAudioSource.playOnAwake = false;
+            cardRarityAudioSource.loop = false;
+            cardRarityAudioSource.spatialBlend = 0f;
+            cardRarityAudioSource.volume = 0.46f;
+
+            const int sampleRate = 44100;
+            float[] rootFrequencies = { 392f, 440f, 587.33f, 783.99f, 987.77f };
+            float[] durations = { 0.16f, 0.26f, 0.30f, 0.42f, 0.62f };
+            for (int tier = 0; tier < cardRarityAudioClips.Length; tier++)
+            {
+                int sampleCount = Mathf.CeilToInt(sampleRate * durations[tier]);
+                float[] samples = new float[sampleCount];
+                float root = rootFrequencies[tier];
+                for (int i = 0; i < sampleCount; i++)
+                {
+                    float time = i / (float)sampleRate;
+                    float attack = Mathf.Clamp01(time / 0.005f);
+                    float envelope = attack * Mathf.Exp(-time * (9.5f - tier * 0.9f));
+                    float tone = Mathf.Sin(2f * Mathf.PI * root * time) * 0.62f;
+                    if (tier == 1)
+                    {
+                        const float secondNoteStart = 0.065f;
+                        float secondNoteTime = Mathf.Max(0f, time - secondNoteStart);
+                        float secondNoteFade = Mathf.SmoothStep(0f, 1f,
+                            Mathf.Clamp01(secondNoteTime / 0.018f));
+                        tone *= 1f - secondNoteFade * 0.32f;
+                        tone += Mathf.Sin(2f * Mathf.PI * root * 1.25f * secondNoteTime)
+                            * 0.18f * secondNoteFade * Mathf.Exp(-secondNoteTime * 8f);
+                    }
+                    else if (tier >= 2)
+                    {
+                        float fifthFade = Mathf.Clamp01((time - 0.018f) / 0.012f);
+                        tone += Mathf.Sin(2f * Mathf.PI * root * 1.4983f * time) * 0.18f * fifthFade;
+                    }
+                    if (tier >= 2)
+                    {
+                        float thirdFade = Mathf.Clamp01((time - 0.036f) / 0.014f);
+                        tone += Mathf.Sin(2f * Mathf.PI * root * 1.2599f * time) * 0.13f * thirdFade;
+                    }
+                    if (tier >= 3)
+                        tone += Mathf.Sin(2f * Mathf.PI * root * 2f * time) * 0.06f;
+                    if (tier >= 4)
+                        tone += Mathf.Sin(2f * Mathf.PI * root * 3f * time)
+                            * 0.025f * Mathf.Exp(-time * 7f);
+                    float tierVolume = tier == 1 ? 0.21f : 0.29f;
+                    samples[i] = tone * envelope * tierVolume;
+                }
+
+                AudioClip clip = AudioClip.Create(
+                    "Card Rarity Reveal " + tier, sampleCount, 1, sampleRate, false);
+                clip.SetData(samples, 0);
+                cardRarityAudioClips[tier] = clip;
+            }
+        }
+
+        private void PlayCardRarityRevealSound(global::CardRarity rarity)
+        {
+            int tier = Mathf.Clamp((int)rarity, 0, cardRarityAudioClips.Length - 1);
+            AudioClip clip = cardRarityAudioClips[tier];
+            if (cardRarityAudioSource == null || clip == null) return;
+            cardRarityAudioSource.Stop();
+            cardRarityAudioSource.PlayOneShot(clip);
+        }
+
+        private void SetupPackTearAudio()
+        {
+            packTearAudioSource = gameObject.AddComponent<AudioSource>();
+            packTearAudioSource.playOnAwake = false;
+            packTearAudioSource.loop = false;
+            packTearAudioSource.spatialBlend = 0f;
+            packTearAudioSource.volume = 0.48f;
+
+            const int sampleRate = 44100;
+            const float duration = 0.26f;
+            int sampleCount = Mathf.CeilToInt(sampleRate * duration);
+            float[] samples = new float[sampleCount];
+            uint noiseState = 0xA3C59AC3u;
+            float smoothedNoise = 0f;
+            float softenedSample = 0f;
+            for (int i = 0; i < sampleCount; i++)
+            {
+                float time = i / (float)sampleRate;
+                float progress = time / duration;
+                noiseState = unchecked(noiseState * 1664525u + 1013904223u);
+                float rawNoise = ((noiseState >> 8) / 16777215f) * 2f - 1f;
+                smoothedNoise = Mathf.Lerp(smoothedNoise, rawNoise, 0.16f);
+                float crispNoise = rawNoise - smoothedNoise * 0.62f;
+                float crackle = Mathf.Abs(rawNoise) > 0.76f ? rawNoise : 0f;
+                float pulse = 0.78f + 0.22f * Mathf.Sin(2f * Mathf.PI * 34f * time);
+                float scrapePhase = 280f * time + 720f * time * time;
+                float scrape = Mathf.Sin(2f * Mathf.PI * scrapePhase);
+                float attack = Mathf.Clamp01(time / 0.012f);
+                float envelope = attack * Mathf.Pow(Mathf.Clamp01(1f - progress), 1.35f);
+                float mixedSample = crispNoise * 0.42f + smoothedNoise * 0.22f
+                    + crackle * 0.12f + scrape * 0.06f;
+                softenedSample = Mathf.Lerp(softenedSample, mixedSample, 0.34f);
+                samples[i] = softenedSample * pulse * envelope * 0.44f;
+            }
+
+            packTearAudioClip = AudioClip.Create(
+                "Card Pack Tear", sampleCount, 1, sampleRate, false);
+            packTearAudioClip.SetData(samples, 0);
+        }
+
+        private void PlayPackTearSound()
+        {
+            if (packTearAudioSource == null || packTearAudioClip == null) return;
+            packTearAudioSource.Stop();
+            packTearAudioSource.PlayOneShot(packTearAudioClip);
+        }
+
+        private void SetupScorePopupAudio()
+        {
+            scorePopupAudioSource = gameObject.AddComponent<AudioSource>();
+            scorePopupAudioSource.playOnAwake = false;
+            scorePopupAudioSource.loop = false;
+            scorePopupAudioSource.spatialBlend = 0f;
+            scorePopupAudioSource.volume = 0.44f;
+
+            const int sampleRate = 44100;
+            const float duration = 0.52f;
+            int sampleCount = Mathf.CeilToInt(sampleRate * duration);
+            float[] samples = new float[sampleCount];
+            for (int i = 0; i < sampleCount; i++)
+            {
+                float time = i / (float)sampleRate;
+                float attack = Mathf.Clamp01(time / 0.006f);
+                float envelope = attack * Mathf.Exp(-time * 6.2f);
+                float fundamental = Mathf.Sin(2f * Mathf.PI * 987.77f * time);
+                float fifth = Mathf.Sin(2f * Mathf.PI * 1480f * time);
+                float octave = Mathf.Sin(2f * Mathf.PI * 1975.53f * time);
+                float shimmer = Mathf.Sin(2f * Mathf.PI * 2960f * time)
+                    * attack * Mathf.Exp(-time * 15f);
+                samples[i] = ((fundamental * 0.58f + fifth * 0.22f + octave * 0.13f) * envelope
+                    + shimmer * 0.025f) * 0.31f;
+            }
+
+            scorePopupAudioClip = AudioClip.Create(
+                "Score Popup Ding", sampleCount, 1, sampleRate, false);
+            scorePopupAudioClip.SetData(samples, 0);
+        }
+
+        private void PlayScorePopupSound()
+        {
+            if (scorePopupAudioSource == null || scorePopupAudioClip == null) return;
+            scorePopupAudioSource.Stop();
+            scorePopupAudioSource.PlayOneShot(scorePopupAudioClip);
+        }
+
+        private void SetupAbilityEffectAudio()
+        {
+            abilityEffectAudioSource = gameObject.AddComponent<AudioSource>();
+            abilityEffectAudioSource.playOnAwake = false;
+            abilityEffectAudioSource.loop = false;
+            abilityEffectAudioSource.spatialBlend = 0f;
+            abilityEffectAudioSource.volume = 0.48f;
+
+            const int sampleRate = 44100;
+            const float equipDuration = 0.34f;
+            int equipSampleCount = Mathf.CeilToInt(sampleRate * equipDuration);
+            float[] equipSamples = new float[equipSampleCount];
+            float phase = 0f;
+            for (int i = 0; i < equipSampleCount; i++)
+            {
+                float time = i / (float)sampleRate;
+                float progress = time / equipDuration;
+                float frequency = Mathf.Lerp(440f, 1174.66f, Mathf.SmoothStep(0f, 1f, progress));
+                phase += 2f * Mathf.PI * frequency / sampleRate;
+                float attack = Mathf.Clamp01(time / 0.012f);
+                float envelope = attack * Mathf.Pow(Mathf.Clamp01(1f - progress), 1.35f);
+                float tone = Mathf.Sin(phase) * 0.62f + Mathf.Sin(phase * 2f) * 0.17f;
+                float sparkle = Mathf.Sin(2f * Mathf.PI * 2349.32f * time)
+                    * Mathf.Clamp01((time - 0.12f) / 0.04f) * 0.12f;
+                equipSamples[i] = (tone + sparkle) * envelope * 0.38f;
+            }
+            magicEquipAudioClip = AudioClip.Create(
+                "Magic Equip", equipSampleCount, 1, sampleRate, false);
+            magicEquipAudioClip.SetData(equipSamples, 0);
+
+            const float resonanceDuration = 0.72f;
+            int resonanceSampleCount = Mathf.CeilToInt(sampleRate * resonanceDuration);
+            float[] resonanceSamples = new float[resonanceSampleCount];
+            for (int i = 0; i < resonanceSampleCount; i++)
+            {
+                float time = i / (float)sampleRate;
+                float progress = time / resonanceDuration;
+                float attack = Mathf.Clamp01(time / 0.045f);
+                float envelope = attack * Mathf.Pow(Mathf.Clamp01(1f - progress), 0.82f);
+                float chord = Mathf.Sin(2f * Mathf.PI * 261.63f * time) * 0.42f
+                    + Mathf.Sin(2f * Mathf.PI * 329.63f * time) * 0.34f
+                    + Mathf.Sin(2f * Mathf.PI * 392f * time) * 0.28f
+                    + Mathf.Sin(2f * Mathf.PI * 783.99f * time) * 0.08f;
+                float shimmer = Mathf.Sin(2f * Mathf.PI * (1174.66f + progress * 392f) * time)
+                    * Mathf.Sin(Mathf.PI * progress) * 0.08f;
+                resonanceSamples[i] = (chord + shimmer) * envelope * 0.42f;
+            }
+            runeResonanceAudioClip = AudioClip.Create(
+                "Rune Resonance", resonanceSampleCount, 1, sampleRate, false);
+            runeResonanceAudioClip.SetData(resonanceSamples, 0);
+        }
+
+        private void PlayMagicEquipSound()
+        {
+            if (abilityEffectAudioSource == null || magicEquipAudioClip == null) return;
+            abilityEffectAudioSource.Stop();
+            abilityEffectAudioSource.PlayOneShot(magicEquipAudioClip);
+        }
+
+        private void PlayRuneResonanceSound()
+        {
+            if (abilityEffectAudioSource == null || runeResonanceAudioClip == null) return;
+            abilityEffectAudioSource.Stop();
+            abilityEffectAudioSource.PlayOneShot(runeResonanceAudioClip);
         }
 
         private void UpdatePendingScore()
@@ -907,7 +2483,13 @@ namespace CardOpen.Prototype
             for (int i = 0; i < scorePopups.Count; i++)
             {
                 ScorePopup popup = scorePopups[i];
-                if (popup.AddedToPendingScore || now < popup.StartTime) continue;
+                if (now < popup.StartTime) continue;
+                if (!popup.SoundPlayed)
+                {
+                    popup.SoundPlayed = true;
+                    PlayScorePopupSound();
+                }
+                if (popup.AddedToPendingScore) continue;
                 popup.AddedToPendingScore = true;
                 pendingScore += popup.Score;
             }
@@ -920,6 +2502,7 @@ namespace CardOpen.Prototype
                 if (scoreDelta > 0)
                 {
                     totalScore += scoreDelta;
+                    roundScore += scoreDelta;
                     scoreTransferApplied = targetApplied;
                 }
 
@@ -939,14 +2522,329 @@ namespace CardOpen.Prototype
 
         private static int GetEffectiveDeckCopyCount(StoredCard card)
         {
-            return card != null && card.IsHolographic ? 2 : 1;
+            if (card == null) return 1;
+            int physicalCopies = Mathf.Max(1, card.CombinedCopies);
+            return physicalCopies + GetCombinedHolographicCopyCount(card);
+        }
+
+        private static int GetCombinedHolographicCopyCount(StoredCard card)
+        {
+            if (card == null) return 0;
+            int physicalCopies = Mathf.Max(1, card.CombinedCopies);
+            if (card.CombinedHolographicCopies > 0)
+                return Mathf.Clamp(card.CombinedHolographicCopies, 0, physicalCopies);
+            return card.IsHolographic ? physicalCopies : 0;
+        }
+
+        private int GetAbilityOwnerCount()
+        {
+            int count = deckCards.Count;
+            for (int i = 0; i < deckCards.Count; i++)
+            {
+                if (deckCards[i] == null) continue;
+                if (deckCards[i].EquippedMagic != null) count++;
+                if (deckCards[i].EquippedWeapon != null) count++;
+                for (int j = 0; j < deckCards[i].InheritedRelics.Count; j++)
+                    if (deckCards[i].InheritedRelics[j] != null) count++;
+            }
+            return count;
+        }
+
+        private StoredCard GetAbilityOwnerAt(int index)
+        {
+            if (index < 0) return null;
+            if (index < deckCards.Count) return deckCards[index];
+            index -= deckCards.Count;
+            for (int i = 0; i < deckCards.Count; i++)
+            {
+                StoredCard host = deckCards[i];
+                if (host == null) continue;
+                if (host.EquippedMagic != null)
+                {
+                    if (index == 0) return host.EquippedMagic;
+                    index--;
+                }
+                if (host.EquippedWeapon != null)
+                {
+                    if (index == 0) return host.EquippedWeapon;
+                    index--;
+                }
+                for (int j = 0; j < host.InheritedRelics.Count; j++)
+                {
+                    StoredCard relic = host.InheritedRelics[j];
+                    if (relic == null) continue;
+                    if (index == 0) return relic;
+                    index--;
+                }
+            }
+            return null;
+        }
+
+        private static bool IsRuneCard(StoredCard card)
+        {
+            return card != null && card.Data != null && card.Data.HasTag(global::CardTag.Rune);
+        }
+
+        private bool IsRuneResonanceActive()
+        {
+            HashSet<global::CardData> runeTypes = new HashSet<global::CardData>();
+            for (int i = 0; i < deckCards.Count; i++)
+            {
+                StoredCard card = deckCards[i];
+                if (IsRuneCard(card)) runeTypes.Add(card.Data);
+            }
+            return runeTypes.Count >= 2;
+        }
+
+        private string GetStoredCardDisplayName(StoredCard card)
+        {
+            if (card == null) return string.Empty;
+            string baseName = card.Data != null && !string.IsNullOrWhiteSpace(card.Data.Name)
+                ? card.Data.Name : card.Name;
+            string displayName = IsRuneCard(card) && IsRuneResonanceActive() ? baseName + "-공명" : baseName;
+            if (card.CombinedCopies > 1) displayName += " * " + card.CombinedCopies;
+            List<string> equippedNames = new List<string>();
+            if (card.EquippedMagic != null && card.EquippedMagic.Data != null)
+                equippedNames.Add(card.EquippedMagic.Data.Name);
+            if (card.EquippedWeapon != null && card.EquippedWeapon.Data != null)
+                equippedNames.Add(card.EquippedWeapon.Data.Name);
+            return equippedNames.Count > 0
+                ? displayName + "(" + string.Join(", ", equippedNames) + ")"
+                : displayName;
+        }
+
+        private bool IsResonatingRuneAbility(StoredCard owner, global::CardDeckAbility ability,
+            global::DeckAbilityEffect effect)
+        {
+            return ability != null && ability.Effect == effect && IsRuneCard(owner)
+                && IsRuneResonanceActive();
+        }
+
+        private float GetRuneResonanceValue(StoredCard revealedCard, global::DeckAbilityEffect effect,
+            out StoredCard popupOwner, out global::CardDeckAbility popupAbility)
+        {
+            popupOwner = null;
+            popupAbility = null;
+            if (revealedCard == null || !IsRuneResonanceActive()) return 0f;
+
+            float total = 0f;
+            bool matchesResonanceColor = false;
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
+            {
+                StoredCard owner = GetAbilityOwnerAt(i);
+                if (!IsRuneCard(owner) || owner.Data.DeckAbilities == null) continue;
+                int effectiveCopies = GetEffectiveDeckCopyCount(owner);
+                for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
+                {
+                    global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
+                    if (ability == null || ability.Effect != effect) continue;
+                    if (RevealedCardMatchesAnyColor(revealedCard, ability.ApplicableColors))
+                    {
+                        matchesResonanceColor = true;
+                        if (popupOwner == null)
+                        {
+                            popupOwner = owner;
+                            popupAbility = ability;
+                        }
+                    }
+                    total += effect == global::DeckAbilityEffect.AddTriggeredScorePercent
+                        ? ability.PercentBonus * effectiveCopies
+                        : ability.ChancePercent * effectiveCopies;
+                }
+            }
+            return matchesResonanceColor ? total : 0f;
+        }
+
+        private float GetRuneResonanceTotalValue(global::DeckAbilityEffect effect)
+        {
+            if (!IsRuneResonanceActive()) return 0f;
+            float total = 0f;
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
+            {
+                StoredCard owner = GetAbilityOwnerAt(i);
+                if (!IsRuneCard(owner) || owner.Data.DeckAbilities == null) continue;
+                int effectiveCopies = GetEffectiveDeckCopyCount(owner);
+                for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
+                {
+                    global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
+                    if (ability == null || ability.Effect != effect) continue;
+                    total += effect == global::DeckAbilityEffect.AddTriggeredScorePercent
+                        ? ability.PercentBonus * effectiveCopies
+                        : ability.ChancePercent * effectiveCopies;
+                }
+            }
+            return total;
+        }
+
+        private string GetStoredCardDisplayDescription(StoredCard card)
+        {
+            if (card == null || card.Data == null) return string.Empty;
+            string description = card.Data.Description ?? string.Empty;
+            description = ApplyInheritedRelicDescription(card, description);
+            description = ApplyEquippedMagicDescription(card, description);
+            description = ApplyEquippedWeaponDescription(card, description);
+            if (!IsRuneCard(card) || !IsRuneResonanceActive()
+                || card.Data.DeckAbilities == null) return description;
+
+            description = ApplyRuneResonanceIncrease(description, card,
+                global::DeckAbilityEffect.AddTriggeredScorePercent);
+            description = ApplyRuneResonanceIncrease(description, card,
+                global::DeckAbilityEffect.GrantHologramChance);
+            return description;
+        }
+
+        private static string ApplyInheritedRelicDescription(StoredCard card, string description)
+        {
+            if (card == null || card.InheritedRelics.Count == 0) return description;
+            List<string> lines = new List<string> { "[조립 유물 효과]" };
+            for (int i = 0; i < card.InheritedRelics.Count; i++)
+            {
+                StoredCard relic = card.InheritedRelics[i];
+                if (relic == null || relic.Data == null || relic.Data.DeckAbilities == null) continue;
+                int copies = GetEffectiveDeckCopyCount(relic);
+                for (int j = 0; j < relic.Data.DeckAbilities.Count; j++)
+                {
+                    global::CardDeckAbility ability = relic.Data.DeckAbilities[j];
+                    if (ability == null) continue;
+                    switch (ability.Effect)
+                    {
+                        case global::DeckAbilityEffect.AddScore:
+                            lines.Add("나사: 매 카드 +" + ability.Score * copies + "점");
+                            break;
+                        case global::DeckAbilityEffect.IncreaseScoreBonusEfficiency:
+                            lines.Add("바퀴: 보너스 효율 +" +
+                                (ability.PercentBonus * copies).ToString("0.#") + "%");
+                            break;
+                        case global::DeckAbilityEffect.AccumulateScoreBonusPerDraw:
+                            string label = relic.Data.name == "MagicEngine" ? "엔진" : "배터리";
+                            string suffix = ability.ResetAccumulationAfterPack ? " (팩 종료 시 초기화)" : string.Empty;
+                            lines.Add(label + ": 매 카드 누적 +" +
+                                (ability.PercentBonus * copies).ToString("0.#") + "%" + suffix);
+                            break;
+                    }
+                }
+            }
+            return lines.Count <= 1 ? description : description + "\n" + string.Join("\n", lines);
+        }
+
+        private string ApplyRuneResonanceIncrease(string description, StoredCard card,
+            global::DeckAbilityEffect effect)
+        {
+            for (int i = 0; i < card.Data.DeckAbilities.Count; i++)
+            {
+                global::CardDeckAbility ability = card.Data.DeckAbilities[i];
+                if (ability == null || ability.Effect != effect) continue;
+                float baseValue = effect == global::DeckAbilityEffect.AddTriggeredScorePercent
+                    ? ability.PercentBonus : ability.ChancePercent;
+                if (baseValue <= 0f) continue;
+                float totalValue = GetRuneResonanceTotalValue(effect);
+                float increase = Mathf.Max(0f, totalValue - baseValue);
+                if (increase <= 0f) return description;
+                string baseText = baseValue.ToString("0.#") + "%";
+                int percentIndex = description.IndexOf(baseText);
+                if (percentIndex < 0) return description;
+                string increaseText = "(+" + increase.ToString("0.#") + "%)";
+                return description.Insert(percentIndex + baseText.Length, increaseText);
+            }
+            return description;
+        }
+
+        private static string ApplyEquippedMagicDescription(StoredCard card, string description)
+        {
+            if (card.Data == null || !card.Data.CanEquipMagic || card.EquippedMagic == null
+                || card.EquippedMagic.Data == null) return description;
+            global::CardData magic = card.EquippedMagic.Data;
+            string equippedEffect = magic.Name + ": " + (magic.Description ?? string.Empty) + " (장착됨)";
+            string[] markers =
+            {
+                "마법을 1장 장착할 수 있다.",
+                "마법을 1장 장착할 수 있다",
+                "마법을 하나 장착할 수 있다.",
+                "마법을 하나 장착할수 있다."
+            };
+            for (int i = 0; i < markers.Length; i++)
+            {
+                if (description.Contains(markers[i]))
+                    return ReplaceEquipmentMarkerWithLineBreak(description, markers[i], equippedEffect);
+            }
+            return string.IsNullOrWhiteSpace(description)
+                ? equippedEffect : description + "\n" + equippedEffect;
+        }
+
+        private static string ApplyEquippedWeaponDescription(StoredCard card, string description)
+        {
+            if (card.Data == null || !card.Data.CanEquipWeapon || card.EquippedWeapon == null
+                || card.EquippedWeapon.Data == null) return description;
+            global::CardData weapon = card.EquippedWeapon.Data;
+            string equippedEffect = weapon.Name + ": " + (weapon.Description ?? string.Empty) + " (장착됨)";
+            string[] markers =
+            {
+                "무기를 1개 장착할 수 있다.",
+                "무기를 1개 장착할 수 있다",
+                "무기를 하나 장착할 수 있다.",
+                "무기를 하나 장착할수 있다."
+            };
+            for (int i = 0; i < markers.Length; i++)
+            {
+                if (description.Contains(markers[i]))
+                    return ReplaceEquipmentMarkerWithLineBreak(description, markers[i], equippedEffect);
+            }
+            return string.IsNullOrWhiteSpace(description)
+                ? equippedEffect : description + "\n" + equippedEffect;
+        }
+
+        private static string ReplaceEquipmentMarkerWithLineBreak(
+            string description, string marker, string equippedEffect)
+        {
+            int markerIndex = description.IndexOf(marker, System.StringComparison.Ordinal);
+            if (markerIndex < 0) return description;
+            string before = description.Substring(0, markerIndex).TrimEnd();
+            if (before.EndsWith(",", System.StringComparison.Ordinal))
+                before = before.Substring(0, before.Length - 1).TrimEnd();
+            string after = description.Substring(markerIndex + marker.Length).TrimStart();
+            if (after.StartsWith(",", System.StringComparison.Ordinal))
+                after = after.Substring(1).TrimStart();
+            string result = string.IsNullOrEmpty(before) ? equippedEffect : before + "\n" + equippedEffect;
+            return string.IsNullOrEmpty(after) ? result : result + "\n" + after;
+        }
+
+        private void RefreshDeckCardDisplayNames()
+        {
+            bool resonanceActive = IsRuneResonanceActive();
+            if (resonanceActive && !runeResonanceWasActive) PlayRuneResonanceSound();
+            runeResonanceWasActive = resonanceActive;
+            for (int i = 0; i < deckCards.Count && i < deckVisuals.Count; i++)
+            {
+                GameObject visualObject = deckVisuals[i];
+                if (visualObject == null) continue;
+                CardVisual visual = visualObject.GetComponent<CardVisual>();
+                if (visual == null) continue;
+                visual.SetDisplayName(GetStoredCardDisplayName(deckCards[i]));
+                visual.SetDisplayDescription(deckCards[i].Data,
+                    GetStoredCardDisplayDescription(deckCards[i]));
+            }
         }
         private bool DoesDeckAbilityTrigger(global::CardDeckAbility ability, StoredCard owner, StoredCard revealedCard, int triggeredEffectCount = 0)
+        {
+            if (DoesDeckAbilityTriggerNormally(ability, owner, revealedCard, triggeredEffectCount)) return true;
+            return IsNatureChainForcedTrigger(owner, ability);
+        }
+
+        private bool IsNatureChainForcedTrigger(StoredCard owner, global::CardDeckAbility ability)
+        {
+            return natureAbilityChainActive
+                && owner != null && owner.Data != null
+                && owner.Data.HasTag(global::CardTag.Nature)
+                && !naturallyTriggeredNatureOwners.Contains(owner)
+                && IsNatureChainEligibleAbility(ability);
+        }
+
+        private bool DoesDeckAbilityTriggerNormally(global::CardDeckAbility ability, StoredCard owner, StoredCard revealedCard, int triggeredEffectCount = 0)
         {
             switch (ability.Trigger)
             {
                 case global::DeckAbilityTrigger.MatchingColor:
-                    return owner.Color == revealedCard.Color;
+                    return ColorsMatch(owner.Color, revealedCard.Color);
                 case global::DeckAbilityTrigger.OddNumber:
                 case global::DeckAbilityTrigger.EvenNumber:
                 case global::DeckAbilityTrigger.NumberAtLeastFour:
@@ -956,32 +2854,275 @@ namespace CardOpen.Prototype
                     return ability.ApplicableNumbers != null
                         && ability.ApplicableNumbers.Contains(revealedCard.Number);
                 case global::DeckAbilityTrigger.DifferentColor:
-                    return owner.Color != revealedCard.Color;
+                    return !ColorsMatch(owner.Color, revealedCard.Color);
+                case global::DeckAbilityTrigger.MatchingColorAndNumber:
+                    return ColorsMatch(owner.Color, revealedCard.Color)
+                        && owner.Number == revealedCard.Number;
                 case global::DeckAbilityTrigger.MatchingNumber:
                     return owner.Number == revealedCard.Number;
                 case global::DeckAbilityTrigger.EveryCard:
                     return true;
                 case global::DeckAbilityTrigger.MatchingColorOrRed:
-                    return owner.Color == revealedCard.Color || revealedCard.Color == global::CardColor.Red;
+                    return ColorsMatch(owner.Color, revealedCard.Color)
+                        || RevealedCardHasColor(revealedCard, global::CardColor.Red);
                 case global::DeckAbilityTrigger.PreviousCardDifferentColor:
-                    return previousRevealedCard != null && previousRevealedCard.Color != revealedCard.Color;
+                    return previousRevealedCard != null
+                        && !ColorsMatch(previousRevealedCard.Color, revealedCard.Color);
 
                 case global::DeckAbilityTrigger.TriggeredEffectsAtLeastThree:
                     return triggeredEffectCount >= 3;
                 case global::DeckAbilityTrigger.RedCard:
-                    return revealedCard.Color == global::CardColor.Red;
+                    return RevealedCardHasColor(revealedCard, global::CardColor.Red);
                 case global::DeckAbilityTrigger.IncludedColors:
-                    return ability.ApplicableColors != null
-                        && ability.ApplicableColors.Contains(revealedCard.Color);
+                    return RevealedCardMatchesAnyColor(revealedCard, ability.ApplicableColors);
 
                 default:
                     return false;
             }
         }
 
+        private bool ColorsMatch(global::CardColor left, global::CardColor right)
+        {
+            if (left == right) return true;
+            return HasWhiteCardsCountAsAllColors()
+                && (left == global::CardColor.White || right == global::CardColor.White);
+        }
+
+        private bool RevealedCardHasColor(StoredCard card, global::CardColor color)
+        {
+            if (card == null) return false;
+            return card.Color == color
+                || (card.Color == global::CardColor.White && HasWhiteCardsCountAsAllColors());
+        }
+
+        private bool RevealedCardMatchesAnyColor(StoredCard card, List<global::CardColor> colors)
+        {
+            if (card == null || colors == null || colors.Count == 0) return false;
+            return colors.Contains(card.Color)
+                || (card.Color == global::CardColor.White && HasWhiteCardsCountAsAllColors());
+        }
+
+        private bool HasWhiteCardsCountAsAllColors()
+        {
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
+            {
+                StoredCard owner = GetAbilityOwnerAt(i);
+                if (owner == null || owner.Data == null || owner.Data.DeckAbilities == null) continue;
+                for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
+                {
+                    global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
+                    if (ability != null
+                        && ability.Effect == global::DeckAbilityEffect.WhiteCardsCountAsAllColors)
+                        return true;
+                }
+            }
+            return false;
+        }
+        private bool TryAutoEquipMagic(StoredCard magic)
+        {
+            if (magic == null || magic.Data == null || magic.IsStoredInDeck
+                || IsStackableCardData(magic.Data)
+                || !magic.Data.HasTag(global::CardTag.Magic)) return false;
+            for (int i = 0; i < deckCards.Count; i++)
+            {
+                StoredCard host = deckCards[i];
+                if (host == null || host.Data == null || !host.Data.CanEquipMagic
+                    || host.EquippedMagic != null) continue;
+                magic.IsStoredInDeck = true;
+                magic.DeckSlot = -1;
+                host.EquippedMagic = magic;
+                PlayMagicEquipSound();
+                RefreshDeckCardDisplayNames();
+                return true;
+            }
+            return false;
+        }
+
+        private bool TryAutoEquipWeapon(StoredCard weapon)
+        {
+            if (weapon == null || weapon.Data == null || weapon.IsStoredInDeck
+                || IsStackableCardData(weapon.Data)
+                || !weapon.Data.HasTag(global::CardTag.Weapon)) return false;
+            for (int i = 0; i < deckCards.Count; i++)
+            {
+                StoredCard host = deckCards[i];
+                if (host == null || host.Data == null || !host.Data.CanEquipWeapon
+                    || host.EquippedWeapon != null) continue;
+                weapon.IsStoredInDeck = true;
+                weapon.DeckSlot = -1;
+                host.EquippedWeapon = weapon;
+                PlayMagicEquipSound();
+                RefreshDeckCardDisplayNames();
+                return true;
+            }
+            return false;
+        }
+
+        private bool TryAutoEquipStoredCardsToHost(StoredCard host)
+        {
+            if (host == null || host.Data == null) return false;
+            bool equipped = false;
+            if (host.Data.CanEquipMagic && host.EquippedMagic == null)
+            {
+                int hostIndex = deckCards.IndexOf(host);
+                for (int i = 0; i < deckCards.Count && hostIndex >= 0; i++)
+                {
+                    StoredCard candidate = deckCards[i];
+                    if (candidate == host || candidate == null || candidate.Data == null
+                        || IsStackableCardData(candidate.Data)
+                        || !candidate.Data.HasTag(global::CardTag.Magic)) continue;
+                    equipped |= TryEquipDeckMagic(i, hostIndex);
+                    break;
+                }
+            }
+            if (host.Data.CanEquipWeapon && host.EquippedWeapon == null)
+            {
+                int hostIndex = deckCards.IndexOf(host);
+                for (int i = 0; i < deckCards.Count && hostIndex >= 0; i++)
+                {
+                    StoredCard candidate = deckCards[i];
+                    if (candidate == host || candidate == null || candidate.Data == null
+                        || IsStackableCardData(candidate.Data)
+                        || !candidate.Data.HasTag(global::CardTag.Weapon)) continue;
+                    equipped |= TryEquipDeckWeapon(i, hostIndex);
+                    break;
+                }
+            }
+            if (equipped)
+            {
+                RefreshDeckCardDisplayNames();
+                LayoutDeckVisuals();
+            }
+            return equipped;
+        }
+
+        private static bool IsStackableCardData(global::CardData data)
+        {
+            return data != null && (data.UnlimitedMergeCount || data.MaxMergeCount > 1);
+        }
+
+        private bool TryMergeCardIntoDeck(StoredCard incoming)
+        {
+            if (incoming == null || incoming.Data == null
+                || (!incoming.Data.UnlimitedMergeCount && incoming.Data.MaxMergeCount <= 1)
+                || incoming.EquippedMagic != null || incoming.EquippedWeapon != null) return false;
+            int incomingCopies = Mathf.Max(1, incoming.CombinedCopies);
+            for (int i = 0; i < deckCards.Count; i++)
+            {
+                StoredCard target = deckCards[i];
+                if (target == null || target.Data != incoming.Data || target.EquippedMagic != null
+                    || target.EquippedWeapon != null) continue;
+                int targetCopies = Mathf.Max(1, target.CombinedCopies);
+                int mergeLimit = target.Data.UnlimitedMergeCount
+                    ? int.MaxValue : Mathf.Max(1, target.Data.MaxMergeCount);
+                if (incomingCopies > mergeLimit - targetCopies) continue;
+
+                bool wasHolographic = target.IsHolographic;
+                int holographicCopies = GetCombinedHolographicCopyCount(target)
+                    + GetCombinedHolographicCopyCount(incoming);
+                target.CombinedCopies = targetCopies + incomingCopies;
+                target.CombinedHolographicCopies = Mathf.Clamp(holographicCopies, 0, target.CombinedCopies);
+                target.IsHolographic = target.CombinedHolographicCopies > 0;
+                incoming.IsStoredInDeck = true;
+                incoming.DeckSlot = -1;
+
+                if (!wasHolographic && target.IsHolographic && i < deckVisuals.Count
+                    && deckVisuals[i] != null)
+                {
+                    CardVisual visual = deckVisuals[i].GetComponent<CardVisual>();
+                    if (visual != null) visual.EnableHologram();
+                }
+                PlayMagicEquipSound();
+                if (!TryFuseMagicEngineeringSatellite())
+                {
+                    RefreshDeckCardDisplayNames();
+                    LayoutDeckVisuals();
+                }
+                return true;
+            }
+            return false;
+        }
+
+        private int FindFullyMergedCardIndex(string assetName, int requiredCopies)
+        {
+            for (int i = 0; i < deckCards.Count; i++)
+            {
+                StoredCard card = deckCards[i];
+                if (card == null || card.Data == null || card.Data.name != assetName) continue;
+                if (Mathf.Max(1, card.CombinedCopies) >= requiredCopies) return i;
+            }
+            return -1;
+        }
+
+        private bool TryFuseMagicEngineeringSatellite()
+        {
+            int screwIndex = FindFullyMergedCardIndex("MagicScrew", 4);
+            int wheelIndex = FindFullyMergedCardIndex("MagicWheel", 2);
+            int batteryIndex = FindFullyMergedCardIndex("MagicBattery", 2);
+            int engineIndex = FindFullyMergedCardIndex("MagicEngine", 1);
+            if (screwIndex < 0 || wheelIndex < 0 || batteryIndex < 0 || engineIndex < 0) return false;
+
+            global::CardData satelliteData =
+                Resources.Load<global::CardData>("Cards/Legend/MagicEngineeringSatellite");
+            if (satelliteData == null) return false;
+
+            StoredCard engine = deckCards[engineIndex];
+            StoredCard screw = deckCards[screwIndex];
+            StoredCard wheel = deckCards[wheelIndex];
+            StoredCard battery = deckCards[batteryIndex];
+            int resultSlot = Mathf.Min(screw.DeckSlot, wheel.DeckSlot,
+                deckCards[batteryIndex].DeckSlot, engine.DeckSlot);
+            bool resultIsHolographic = GetCombinedHolographicCopyCount(deckCards[screwIndex]) > 0
+                || GetCombinedHolographicCopyCount(deckCards[wheelIndex]) > 0
+                || GetCombinedHolographicCopyCount(deckCards[batteryIndex]) > 0
+                || GetCombinedHolographicCopyCount(engine) > 0;
+            StoredCard satellite = new StoredCard
+            {
+                Name = satelliteData.Name,
+                Data = satelliteData,
+                Rarity = satelliteData.Rare,
+                Color = engine.Color,
+                Number = engine.Number,
+                IsHolographic = resultIsHolographic,
+                IsStoredInDeck = true,
+                DeckSlot = resultSlot,
+                CombinedCopies = 1,
+                CombinedHolographicCopies = resultIsHolographic ? 1 : 0
+            };
+            satellite.InheritedRelics.Add(screw);
+            satellite.InheritedRelics.Add(wheel);
+            satellite.InheritedRelics.Add(battery);
+            satellite.InheritedRelics.Add(engine);
+            for (int i = 0; i < satellite.InheritedRelics.Count; i++)
+                satellite.InheritedRelics[i].DeckSlot = -1;
+
+            List<int> materialIndices = new List<int>
+                { screwIndex, wheelIndex, batteryIndex, engineIndex };
+            materialIndices.Sort();
+            for (int i = materialIndices.Count - 1; i >= 0; i--)
+            {
+                int materialIndex = materialIndices[i];
+                GameObject materialVisual = materialIndex < deckVisuals.Count
+                    ? deckVisuals[materialIndex] : null;
+                deckCards.RemoveAt(materialIndex);
+                if (materialIndex < deckVisuals.Count) deckVisuals.RemoveAt(materialIndex);
+                if (materialVisual != null) Destroy(materialVisual);
+            }
+
+            deckCards.Add(satellite);
+            deckVisuals.Add(BuildDeckVisualForStoredCard(satellite));
+            PlayMagicEquipSound();
+            RefreshDeckCardDisplayNames();
+            LayoutDeckVisuals();
+            return true;
+        }
+
         private bool StoreCurrentCardInDeck(StoredCard card, int preferredSlot = -1)
         {
-            if (card == null || card.IsStoredInDeck || deckCards.Count >= 5) return false;
+            if (card == null || card.IsStoredInDeck) return false;
+            if (TryMergeCardIntoDeck(card)) return true;
+            if (TryAutoEquipMagic(card) || TryAutoEquipWeapon(card)) return true;
+            if (deckCards.Count >= 5) return false;
             int slot = preferredSlot >= 0 && preferredSlot < 5 && GetDeckIndexAtSlot(preferredSlot) < 0
                 ? preferredSlot
                 : GetFirstEmptyDeckSlot();
@@ -991,6 +3132,9 @@ namespace CardOpen.Prototype
             card.DeckSlot = slot;
             deckCards.Add(card);
             CreateStoredCardVisual();
+            TryAutoEquipStoredCardsToHost(card);
+            TryFuseMagicEngineeringSatellite();
+            RefreshDeckCardDisplayNames();
             return true;
         }
 
@@ -1134,9 +3278,16 @@ namespace CardOpen.Prototype
             deckInspectionBackdrop.transform.localScale = new Vector3(height * camera.aspect * 1.08f, height * 1.08f, 1f);
         }
 
+        private bool IsDeckInspectionReadOnly()
+        {
+            return sharedResultMode || phase == RevealPhase.PackChoice
+                || phase == RevealPhase.GameOver || phase == RevealPhase.RunCleared;
+        }
+
         private bool HandleDeckPointer(Vector2 screenPoint, Event inputEvent)
         {
             bool isInspecting = inspectedDeckIndex >= 0;
+            bool readOnly = IsDeckInspectionReadOnly();
             Camera camera = Camera.main;
             if (camera == null) return isInspecting;
 
@@ -1220,7 +3371,7 @@ namespace CardOpen.Prototype
             {
                 Vector2 delta = screenPoint - deckCardDragStart;
                 if (delta.sqrMagnitude >= 25f) deckCardDragActive = true;
-                if (deckCardDragActive && pressedDeckIndex < deckVisuals.Count)
+                if (deckCardDragActive && !readOnly && pressedDeckIndex < deckVisuals.Count)
                 {
                     GameObject dragged = deckVisuals[pressedDeckIndex];
                     float depth = camera.WorldToScreenPoint(CardHome).z - 0.45f;
@@ -1244,6 +3395,10 @@ namespace CardOpen.Prototype
                 {
                     OpenDeckInspection(sourceIndex);
                 }
+                else if (readOnly)
+                {
+                    // Result and pack-choice decks can be inspected but not edited.
+                }
                 else if (IsPointOverCurrentCard(screenPoint, camera))
                 {
                     SwapDeckCardWithCurrent(sourceIndex);
@@ -1251,8 +3406,17 @@ namespace CardOpen.Prototype
                 else
                 {
                     int targetSlot = GetDeckSlotAtPoint(screenPoint);
-                    if (targetSlot >= 0)
+                    int targetIndex = GetDeckIndexAtSlot(targetSlot);
+                    if (targetIndex >= 0 && targetIndex != sourceIndex
+                        && (TryEquipDeckMagic(sourceIndex, targetIndex)
+                            || TryEquipDeckWeapon(sourceIndex, targetIndex)))
+                    {
+                        RefreshDeckCardDisplayNames();
+                    }
+                    else if (targetSlot >= 0)
+                    {
                         MoveDeckCardToSlot(sourceIndex, targetSlot);
+                    }
                 }
                 LayoutDeckVisuals();
                 inputEvent.Use();
@@ -1285,6 +3449,106 @@ namespace CardOpen.Prototype
             return Mathf.Clamp(slot, 0, 4);
         }
 
+        private bool TryEquipDeckMagic(int sourceIndex, int hostIndex)
+        {
+            if (sourceIndex < 0 || sourceIndex >= deckCards.Count || hostIndex < 0
+                || hostIndex >= deckCards.Count || sourceIndex == hostIndex) return false;
+            StoredCard magic = deckCards[sourceIndex];
+            StoredCard host = deckCards[hostIndex];
+            if (magic == null || magic.Data == null || !magic.Data.HasTag(global::CardTag.Magic)
+                || IsStackableCardData(magic.Data)
+                || host == null || host.Data == null || !host.Data.CanEquipMagic) return false;
+
+            if (host.EquippedMagic != null)
+            {
+                host.EquippedMagic.IsStoredInDeck = false;
+                host.EquippedMagic.DeckSlot = -1;
+            }
+            GameObject magicVisual = sourceIndex < deckVisuals.Count ? deckVisuals[sourceIndex] : null;
+            deckCards.RemoveAt(sourceIndex);
+            if (sourceIndex < deckVisuals.Count) deckVisuals.RemoveAt(sourceIndex);
+            if (magicVisual != null) Destroy(magicVisual);
+            magic.IsStoredInDeck = true;
+            magic.DeckSlot = -1;
+            host.EquippedMagic = magic;
+            PlayMagicEquipSound();
+            return true;
+        }
+
+        private bool TryEquipCurrentMagic(int deckIndex)
+        {
+            if (deckIndex < 0 || deckIndex >= deckCards.Count || cardIndex < 0
+                || cardIndex >= currentPackCards.Count) return false;
+            StoredCard host = deckCards[deckIndex];
+            StoredCard magic = currentPackCards[cardIndex];
+            if (host == null || host.Data == null || !host.Data.CanEquipMagic
+                || magic == null || magic.Data == null || magic.IsStoredInDeck
+                || IsStackableCardData(magic.Data)
+                || !magic.Data.HasTag(global::CardTag.Magic)) return false;
+
+            if (host.EquippedMagic != null)
+            {
+                host.EquippedMagic.IsStoredInDeck = false;
+                host.EquippedMagic.DeckSlot = -1;
+            }
+            magic.IsStoredInDeck = true;
+            magic.DeckSlot = -1;
+            host.EquippedMagic = magic;
+            PlayMagicEquipSound();
+            RefreshDeckCardDisplayNames();
+            return true;
+        }
+
+        private bool TryEquipDeckWeapon(int sourceIndex, int hostIndex)
+        {
+            if (sourceIndex < 0 || sourceIndex >= deckCards.Count || hostIndex < 0
+                || hostIndex >= deckCards.Count || sourceIndex == hostIndex) return false;
+            StoredCard weapon = deckCards[sourceIndex];
+            StoredCard host = deckCards[hostIndex];
+            if (weapon == null || weapon.Data == null || !weapon.Data.HasTag(global::CardTag.Weapon)
+                || IsStackableCardData(weapon.Data)
+                || host == null || host.Data == null || !host.Data.CanEquipWeapon) return false;
+
+            if (host.EquippedWeapon != null)
+            {
+                host.EquippedWeapon.IsStoredInDeck = false;
+                host.EquippedWeapon.DeckSlot = -1;
+            }
+            GameObject weaponVisual = sourceIndex < deckVisuals.Count ? deckVisuals[sourceIndex] : null;
+            deckCards.RemoveAt(sourceIndex);
+            if (sourceIndex < deckVisuals.Count) deckVisuals.RemoveAt(sourceIndex);
+            if (weaponVisual != null) Destroy(weaponVisual);
+            weapon.IsStoredInDeck = true;
+            weapon.DeckSlot = -1;
+            host.EquippedWeapon = weapon;
+            PlayMagicEquipSound();
+            return true;
+        }
+
+        private bool TryEquipCurrentWeapon(int deckIndex)
+        {
+            if (deckIndex < 0 || deckIndex >= deckCards.Count || cardIndex < 0
+                || cardIndex >= currentPackCards.Count) return false;
+            StoredCard host = deckCards[deckIndex];
+            StoredCard weapon = currentPackCards[cardIndex];
+            if (host == null || host.Data == null || !host.Data.CanEquipWeapon
+                || weapon == null || weapon.Data == null || weapon.IsStoredInDeck
+                || IsStackableCardData(weapon.Data)
+                || !weapon.Data.HasTag(global::CardTag.Weapon)) return false;
+
+            if (host.EquippedWeapon != null)
+            {
+                host.EquippedWeapon.IsStoredInDeck = false;
+                host.EquippedWeapon.DeckSlot = -1;
+            }
+            weapon.IsStoredInDeck = true;
+            weapon.DeckSlot = -1;
+            host.EquippedWeapon = weapon;
+            PlayMagicEquipSound();
+            RefreshDeckCardDisplayNames();
+            return true;
+        }
+
         private void TryDropCurrentCardIntoDeck(Vector2 screenPoint)
         {
             if (cardIndex < 0 || cardIndex >= cards.Count || cardIndex >= currentPackCards.Count) return;
@@ -1294,6 +3558,13 @@ namespace CardOpen.Prototype
             int occupiedDeckIndex = GetDeckIndexAtSlot(slot);
             if (occupiedDeckIndex >= 0)
             {
+                if (TryEquipCurrentMagic(occupiedDeckIndex)
+                    || TryEquipCurrentWeapon(occupiedDeckIndex))
+                {
+                    StartCoroutine(AdvanceAfterDeckDrop());
+                    LayoutDeckVisuals();
+                    return;
+                }
                 SwapDeckCardWithCurrent(occupiedDeckIndex);
                 LayoutDeckVisuals();
                 return;
@@ -1306,6 +3577,7 @@ namespace CardOpen.Prototype
 
         private IEnumerator AdvanceAfterDeckDrop()
         {
+            CommitPendingScoreImmediately();
             phase = RevealPhase.Animating;
             cardTransitionActive = true;
             CardVisual current = cards[cardIndex];
@@ -1324,12 +3596,13 @@ namespace CardOpen.Prototype
             {
                 cardTransitionActive = false;
                 yield return new WaitForSeconds(0.35f);
-                BeginSequence();
+                CompletePackAndBeginNextSequence();
                 yield break;
             }
 
             yield return cards[cardIndex].MoveToFront(CardHome, RevealedCardScale, 0f);
             yield return RestoreCardStackRotation();
+            PlayCardRarityRevealSound(currentPackCards[cardIndex].Rarity);
             AwardCurrentCardScore();
             cardTransitionActive = false;
             phase = RevealPhase.CardFront;
@@ -1360,6 +3633,8 @@ namespace CardOpen.Prototype
             CardVisual outgoingVisual = cards[cardIndex];
             if (deckData == null || incomingVisual == null || outgoingVisual == null) return false;
 
+            TransferOrSwapCompatibleEquipment(deckData, currentData);
+
             currentData.IsStoredInDeck = true;
             currentData.DeckSlot = deckData.DeckSlot;
             deckData.IsStoredInDeck = false;
@@ -1378,8 +3653,32 @@ namespace CardOpen.Prototype
             incomingVisual.PrepareFaceUp(CardHome, RevealedCardScale, 0f);
             incomingVisual.SetFaceDetailsVisible(true);
             cards[cardIndex] = incomingVisual;
+            incomingVisual.SetDisplayName(GetStoredCardDisplayName(deckData));
+            incomingVisual.SetDisplayDescription(deckData.Data, GetStoredCardDisplayDescription(deckData));
+            RefreshDeckCardDisplayNames();
             LayoutDeckVisuals();
             return true;
+        }
+
+        private void TransferOrSwapCompatibleEquipment(StoredCard source, StoredCard target)
+        {
+            if (source == null || source.Data == null || target == null || target.Data == null) return;
+            bool changed = false;
+            if (source.EquippedMagic != null && target.Data.CanEquipMagic)
+            {
+                StoredCard targetMagic = target.EquippedMagic;
+                target.EquippedMagic = source.EquippedMagic;
+                source.EquippedMagic = targetMagic;
+                changed = true;
+            }
+            if (source.EquippedWeapon != null && target.Data.CanEquipWeapon)
+            {
+                StoredCard targetWeapon = target.EquippedWeapon;
+                target.EquippedWeapon = source.EquippedWeapon;
+                source.EquippedWeapon = targetWeapon;
+                changed = true;
+            }
+            if (changed) PlayMagicEquipSound();
         }
 
         private void MoveDeckCardToSlot(int sourceIndex, int targetSlot)
@@ -1441,6 +3740,11 @@ namespace CardOpen.Prototype
             inspectionStackWasActive = cardStack != null && cardStack.gameObject.activeSelf;
             if (pack != null) pack.gameObject.SetActive(false);
             if (cardStack != null) cardStack.gameObject.SetActive(false);
+            if (phase == RevealPhase.PackChoice)
+            {
+                if (leftPackChoiceVisual != null) leftPackChoiceVisual.gameObject.SetActive(false);
+                if (rightPackChoiceVisual != null) rightPackChoiceVisual.gameObject.SetActive(false);
+            }
             if (deckInspectionBackdrop != null) deckInspectionBackdrop.SetActive(true);
             LayoutDeckVisuals();
         }
@@ -1457,6 +3761,11 @@ namespace CardOpen.Prototype
             inspectedDeckIndex = -1;
             if (pack != null) pack.gameObject.SetActive(inspectionPackWasActive);
             if (cardStack != null) cardStack.gameObject.SetActive(inspectionStackWasActive);
+            if (phase == RevealPhase.PackChoice)
+            {
+                if (leftPackChoiceVisual != null) leftPackChoiceVisual.gameObject.SetActive(true);
+                if (rightPackChoiceVisual != null) rightPackChoiceVisual.gameObject.SetActive(true);
+            }
             if (deckInspectionBackdrop != null) deckInspectionBackdrop.SetActive(false);
             for (int i = 0; i < deckVisuals.Count; i++)
                 if (deckVisuals[i] != null) deckVisuals[i].SetActive(true);
@@ -1511,7 +3820,7 @@ namespace CardOpen.Prototype
             for (int i = scorePopups.Count - 1; i >= 0; i--)
             {
                 ScorePopup popup = scorePopups[i];
-                float age = Time.unscaledTime - popup.StartTime;
+                float age = (Time.unscaledTime - popup.StartTime) * Mathf.Max(1f, popup.PlaybackSpeed);
                 if (age < 0f) continue;
                 if (age >= 1.35f)
                 {
@@ -1529,6 +3838,68 @@ namespace CardOpen.Prototype
             GUI.color = previousColor;
             GUI.matrix = previousMatrix;
         }
+        private bool DrawSettingsButton(float scale, float offsetX, float offsetY)
+        {
+            EnsureDiscardStyles();
+            Matrix4x4 previousMatrix = GUI.matrix;
+            GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
+                new Vector3(scale, scale, 1f));
+            bool clicked = GUI.Button(new Rect(1060f, 28f, 120f, 54f),
+                Ui("\uC124\uC815", "Settings"), discardButtonStyle);
+            bool consumed = clicked || Event.current.type == EventType.Used;
+            GUI.matrix = previousMatrix;
+            if (clicked) settingsOpen = true;
+            return consumed;
+        }
+
+        private void DrawSettingsOverlay(float scale, float offsetX, float offsetY)
+        {
+            EnsureDiscardStyles();
+            if (settingsTitleStyle == null)
+            {
+                settingsTitleStyle = new GUIStyle(GUI.skin.label)
+                {
+                    font = font,
+                    fontSize = 38,
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.MiddleCenter,
+                    normal = { textColor = Color.black }
+                };
+                settingsLabelStyle = new GUIStyle(settingsTitleStyle)
+                {
+                    fontSize = 23,
+                    alignment = TextAnchor.MiddleLeft
+                };
+            }
+
+            Matrix4x4 previousMatrix = GUI.matrix;
+            Color previousColor = GUI.color;
+            GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
+                new Vector3(scale, scale, 1f));
+            GUI.color = new Color(0f, 0f, 0f, 0.68f);
+            GUI.DrawTexture(new Rect(0f, 0f, 1280f, 720f), Texture2D.whiteTexture);
+            GUI.color = previousColor;
+            GUI.Box(new Rect(390f, 145f, 500f, 430f), GUIContent.none, discardPanelStyle);
+            GUI.Label(new Rect(440f, 170f, 400f, 58f), Ui("\uC124\uC815", "Settings"), settingsTitleStyle);
+
+            GUI.Label(new Rect(455f, 250f, 180f, 44f), Ui("\uC5B8\uC5B4", "Language"), settingsLabelStyle);
+            if (GUI.Button(new Rect(455f, 300f, 170f, 52f),
+                (uiLanguage == 0 ? "\u25CF " : string.Empty) + "\uD55C\uAD6D\uC5B4", discardButtonStyle))
+                SetUiLanguage(0);
+            if (GUI.Button(new Rect(655f, 300f, 170f, 52f),
+                (uiLanguage == 1 ? "\u25CF " : string.Empty) + "English", discardButtonStyle))
+                SetUiLanguage(1);
+
+            GUI.Label(new Rect(455f, 380f, 260f, 44f),
+                Ui("\uC74C\uB7C9  ", "Volume  ") + Mathf.RoundToInt(masterVolume * 100f) + "%", settingsLabelStyle);
+            float changedVolume = GUI.HorizontalSlider(new Rect(455f, 438f, 370f, 28f), masterVolume, 0f, 1f);
+            if (!Mathf.Approximately(changedVolume, masterVolume)) SetMasterVolume(changedVolume);
+
+            if (GUI.Button(new Rect(555f, 500f, 170f, 52f), Ui("\uB2EB\uAE30", "Close"), discardButtonStyle))
+                settingsOpen = false;
+            GUI.color = previousColor;
+            GUI.matrix = previousMatrix;
+        }
         private void DrawScore(float scale, float offsetX, float offsetY)
         {
             if (scoreStyle == null)
@@ -1542,13 +3913,441 @@ namespace CardOpen.Prototype
                 };
                 scoreStyle.normal.textColor = Color.white;
             }
+            if (goalStyle == null)
+            {
+                goalStyle = new GUIStyle(GUI.skin.label)
+                {
+                    font = font,
+                    fontSize = 20,
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.UpperLeft
+                };
+                goalStyle.normal.textColor = Color.white;
+            }
 
             Matrix4x4 previousMatrix = GUI.matrix;
             GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
                 new Vector3(scale, scale, 1f));
-            string scoreText = "점수  " + totalScore.ToString("N0");
+            string scoreText = Ui("\uCD1D\uC810  ", "Total  ") + totalScore.ToString("N0");
             if (pendingScore > 0) scoreText += "  + " + pendingScore.ToString("N0");
             GUI.Label(new Rect(24f, 18f, 440f, 48f), scoreText, scoreStyle);
+            int goalIndex = Mathf.Clamp(currentGoalIndex, 0, GoalScores.Length - 1);
+            bool runEnded = phase == RevealPhase.GameOver || phase == RevealPhase.RunCleared;
+            int openedPacksInGoal = completedPacks % PacksPerGoal + (currentPackOpenedForGoal ? 1 : 0);
+            int packsRemaining = runEnded ? 0 : Mathf.Max(0, PacksPerGoal - openedPacksInGoal);
+            string goalText = Ui("\uBAA9\uD45C ", "Goal ") + (goalIndex + 1) + "/" + GoalScores.Length
+                + Ui("  \uB77C\uC6B4\uB4DC \uC810\uC218  ", "  Round score  ")
+                + roundScore.ToString("N0") + " / " + GoalScores[goalIndex].ToString("N0")
+                + Ui("\uC810\n\uB0A8\uC740 \uD329 ", " pts\nPacks left ") + packsRemaining;
+            GUI.Label(new Rect(24f, 64f, 440f, 58f), goalText, goalStyle);
+            GUI.matrix = previousMatrix;
+        }
+
+        private void DrawPackChoice(float scale, float offsetX, float offsetY)
+        {
+            EnsureDiscardStyles();
+            if (packChoiceTitleStyle == null)
+            {
+                packChoiceTitleStyle = new GUIStyle(GUI.skin.label)
+                {
+                    font = font,
+                    fontSize = 32,
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.MiddleCenter,
+                    normal = { textColor = Color.white }
+                };
+                packChoiceTitleStyle.hover.textColor = Color.white;
+                packChoiceTitleStyle.active.textColor = Color.white;
+            }
+
+            if (inspectedPackChoice != null)
+            {
+                DrawActualPackContentsOverlay(scale, offsetX, offsetY);
+                return;
+            }
+
+            Camera camera = Camera.main;
+            if (camera == null || leftPackChoiceVisual == null || rightPackChoiceVisual == null) return;
+
+            Rect leftRect = GetVisualScreenRect(leftPackChoiceVisual.gameObject, camera);
+            Rect rightRect = GetVisualScreenRect(rightPackChoiceVisual.gameObject, camera);
+            Vector2 mousePosition = Event.current.mousePosition;
+            bool leftHovered = leftRect.Contains(mousePosition);
+            bool rightHovered = rightRect.Contains(mousePosition);
+            leftPackChoiceVisual.transform.localScale = Vector3.one * (leftHovered ? 1.25f : 1.18f);
+            rightPackChoiceVisual.transform.localScale = Vector3.one * (rightHovered ? 1.25f : 1.18f);
+
+            if (Event.current.type == EventType.MouseDown && leftHovered)
+            {
+                Event.current.Use();
+                SelectPackChoice(leftPackChoice);
+                return;
+            }
+            if (Event.current.type == EventType.MouseDown && rightHovered)
+            {
+                Event.current.Use();
+                SelectPackChoice(rightPackChoice);
+                return;
+            }
+
+            Rect leftInfoButtonRect = new Rect(
+                (leftRect.center.x - offsetX) / scale - 27f, (leftRect.yMin - offsetY) / scale - 62f, 54f, 54f);
+            Rect rightInfoButtonRect = new Rect(
+                (rightRect.center.x - offsetX) / scale - 27f, (rightRect.yMin - offsetY) / scale - 62f, 54f, 54f);
+
+            Matrix4x4 previousMatrix = GUI.matrix;
+            GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
+                new Vector3(scale, scale, 1f));
+            GUI.Label(new Rect(390f, 28f, 500f, 52f), Ui("\uB2E4\uC74C \uD329\uC744 \uC120\uD0DD\uD558\uC138\uC694", "Choose the next pack"), packChoiceTitleStyle);
+
+            if (GUI.Button(leftInfoButtonRect, "?", discardButtonStyle))
+                OpenPackContents(leftPackChoice);
+            if (GUI.Button(rightInfoButtonRect, "?", discardButtonStyle))
+                OpenPackContents(rightPackChoice);
+            GUI.matrix = previousMatrix;
+        }
+
+        private void OpenPackContents(global::CardPackData packData)
+        {
+            if (packData == null) return;
+            inspectedPackChoice = packData;
+            packContentsScroll = Vector2.zero;
+            packContentsPreviewIndex = 0;
+            packContentsPackWasActive = pack != null && pack.gameObject.activeSelf;
+            packContentsStackWasActive = cardStack != null && cardStack.gameObject.activeSelf;
+            if (leftPackChoiceVisual != null) leftPackChoiceVisual.gameObject.SetActive(false);
+            if (rightPackChoiceVisual != null) rightPackChoiceVisual.gameObject.SetActive(false);
+            if (pack != null) pack.gameObject.SetActive(false);
+            if (cardStack != null) cardStack.gameObject.SetActive(false);
+            BuildPackContentsPreviewCard();
+        }
+
+        private void ClosePackContents()
+        {
+            ClearPackContentsPreview();
+            inspectedPackChoice = null;
+            if (phase == RevealPhase.PackChoice)
+            {
+                if (leftPackChoiceVisual != null) leftPackChoiceVisual.gameObject.SetActive(true);
+                if (rightPackChoiceVisual != null) rightPackChoiceVisual.gameObject.SetActive(true);
+            }
+            else
+            {
+                if (pack != null) pack.gameObject.SetActive(packContentsPackWasActive);
+                if (cardStack != null) cardStack.gameObject.SetActive(packContentsStackWasActive);
+            }
+        }
+
+        private void DrawPackContentsOverlay(float scale, float offsetX, float offsetY)
+        {
+            if (packContentsTitleStyle == null)
+            {
+                packContentsTitleStyle = new GUIStyle(discardMessageStyle)
+                {
+                    fontSize = 30,
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.MiddleLeft
+                };
+                packContentsCardStyle = new GUIStyle(discardMessageStyle)
+                {
+                    fontSize = 17,
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.MiddleCenter,
+                    wordWrap = true
+                };
+                packContentsTitleStyle.hover.textColor = Color.black;
+                packContentsTitleStyle.active.textColor = Color.black;
+                packContentsTitleStyle.focused.textColor = Color.black;
+                packContentsTitleStyle.onNormal.textColor = Color.black;
+                packContentsTitleStyle.onHover.textColor = Color.black;
+                packContentsTitleStyle.onActive.textColor = Color.black;
+                packContentsTitleStyle.onFocused.textColor = Color.black;
+                packContentsCardStyle.hover.textColor = Color.black;
+                packContentsCardStyle.active.textColor = Color.black;
+                packContentsCardStyle.focused.textColor = Color.black;
+                packContentsCardStyle.onNormal.textColor = Color.black;
+                packContentsCardStyle.onHover.textColor = Color.black;
+                packContentsCardStyle.onActive.textColor = Color.black;
+                packContentsCardStyle.onFocused.textColor = Color.black;
+            }
+
+            int cardCount = 0;
+            if (inspectedPackChoice.IncludeCards != null)
+            {
+                for (int i = 0; i < inspectedPackChoice.IncludeCards.Count; i++)
+                {
+                    global::CardPackEntry entry = inspectedPackChoice.IncludeCards[i];
+                    if (entry != null && entry.Card != null) cardCount++;
+                }
+            }
+
+            Matrix4x4 previousMatrix = GUI.matrix;
+            GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
+                new Vector3(scale, scale, 1f));
+            GUI.Box(new Rect(85f, 55f, 1110f, 610f), GUIContent.none, discardPanelStyle);
+            GUI.Label(new Rect(125f, 75f, 650f, 50f),
+                Ui("\uBD09\uC785 \uCE74\uB4DC  ", "Included cards  ") + cardCount.ToString("N0") + Ui("\uC7A5", string.Empty), packContentsTitleStyle);
+            if (GUI.Button(new Rect(995f, 75f, 155f, 48f), Ui("\uB2EB\uAE30", "Close"), discardButtonStyle))
+            {
+                GUI.matrix = previousMatrix;
+                ClosePackContents();
+                return;
+            }
+
+            const int columns = 5;
+            const float cellWidth = 170f;
+            const float cellHeight = 200f;
+            const float gapX = 20f;
+            const float gapY = 18f;
+            int rows = Mathf.Max(1, Mathf.CeilToInt(cardCount / (float)columns));
+            Rect viewport = new Rect(125f, 140f, 1030f, 485f);
+            Rect content = new Rect(0f, 0f, 995f, 12f + rows * (cellHeight + gapY));
+            packContentsScroll = GUI.BeginScrollView(viewport, packContentsScroll, content);
+
+            int visibleIndex = 0;
+            if (inspectedPackChoice.IncludeCards != null)
+            {
+                for (int i = 0; i < inspectedPackChoice.IncludeCards.Count; i++)
+                {
+                    global::CardPackEntry entry = inspectedPackChoice.IncludeCards[i];
+                    if (entry == null || entry.Card == null) continue;
+                    int column = visibleIndex % columns;
+                    int row = visibleIndex / columns;
+                    float x = 12f + column * (cellWidth + gapX);
+                    float y = 8f + row * (cellHeight + gapY);
+                    Rect cellRect = new Rect(x, y, cellWidth, cellHeight);
+                    GUI.Box(cellRect, GUIContent.none, discardPanelStyle);
+                    if (entry.Card.Image != null)
+                        GUI.DrawTexture(new Rect(x + 10f, y + 10f, 150f, 142f),
+                            entry.Card.Image, ScaleMode.ScaleToFit, true);
+                    string cardName = !string.IsNullOrWhiteSpace(entry.Card.Name)
+                        ? entry.Card.Name : entry.Card.name;
+                    GUI.Label(new Rect(x + 8f, y + 154f, 154f, 40f), cardName, packContentsCardStyle);
+                    visibleIndex++;
+                }
+            }
+            if (cardCount == 0)
+                GUI.Label(new Rect(250f, 150f, 500f, 60f), Ui("\uD45C\uC2DC\uD560 \uCE74\uB4DC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.", "No cards to display."), packContentsCardStyle);
+            GUI.EndScrollView();
+            GUI.matrix = previousMatrix;
+        }
+
+        private int GetPackContentsCardCount()
+        {
+            if (inspectedPackChoice == null || inspectedPackChoice.IncludeCards == null) return 0;
+            int count = 0;
+            for (int i = 0; i < inspectedPackChoice.IncludeCards.Count; i++)
+            {
+                global::CardPackEntry entry = inspectedPackChoice.IncludeCards[i];
+                if (entry != null && entry.Card != null) count++;
+            }
+            return count;
+        }
+
+        private global::CardPackEntry GetPackContentsEntry(int visibleIndex)
+        {
+            if (inspectedPackChoice == null || inspectedPackChoice.IncludeCards == null) return null;
+            int current = 0;
+            for (int i = 0; i < inspectedPackChoice.IncludeCards.Count; i++)
+            {
+                global::CardPackEntry entry = inspectedPackChoice.IncludeCards[i];
+                if (entry == null || entry.Card == null) continue;
+                if (current == visibleIndex) return entry;
+                current++;
+            }
+            return null;
+        }
+
+        private static int GetPackContentsRarityNumber(global::CardRarity rarity)
+        {
+            switch (rarity)
+            {
+                case global::CardRarity.Uncommon: return 2;
+                case global::CardRarity.Rare: return 3;
+                case global::CardRarity.Epic: return 4;
+                case global::CardRarity.Legendary: return 5;
+                default: return 1;
+            }
+        }
+
+        private void BuildPackContentsPreviewCard()
+        {
+            ClearPackContentsPreview();
+            global::CardPackEntry entry = GetPackContentsEntry(packContentsPreviewIndex);
+            if (entry == null || entry.Card == null) return;
+            global::CardData data = entry.Card;
+            int previewNumber = GetPackContentsRarityNumber(data.Rare);
+            global::CardColor previewColor = global::CardColor.Black;
+            string previewAttributeKey = previewColor.ToString();
+
+            GameObject cardObject = new GameObject("Pack Contents Preview - " + data.Name);
+            CardVisual visual = cardObject.AddComponent<CardVisual>();
+            Material attributeMaterial = GetTextureMaterial("Attribute_" + previewAttributeKey,
+                "CardAssets/Attributes/Attribute" + previewAttributeKey, false);
+            Material rarityPatternMaterial = GetTextureMaterial("Pattern_" + data.RarityAssetKey,
+                "CardAssets/Rarities/Pattern" + data.RarityAssetKey, true, 0);
+            string costAsset = "Cost" + previewNumber;
+            Material costMaterial = GetTextureMaterial("Cost_" + previewNumber,
+                "CardAssets/Costs/" + costAsset, true, 20);
+            Material illustrationMaterial = GetTextureMaterial(
+                "CardImage_" + data.GetHashCode(), data.Image, true, 10);
+            visual.BuildFromData(data, previewColor, attributeMaterial,
+                GetTextureMaterial("CardBack", "CardAssets/Attributes/AttributeBackRemasterPurple", false),
+                rarityPatternMaterial, illustrationMaterial, costMaterial, font);
+            visual.PrepareFaceUp(new Vector3(0f, 0.92f, -0.24f), 1.5f, 0f);
+            visual.SetFaceDetailsVisible(true);
+            SetStoredVisualShadowMode(cardObject);
+            packContentsPreviewVisual = visual;
+        }
+
+        private void ClearPackContentsPreview()
+        {
+            if (packContentsPreviewVisual == null) return;
+            packContentsPreviewVisual.gameObject.SetActive(false);
+            Destroy(packContentsPreviewVisual.gameObject);
+            packContentsPreviewVisual = null;
+        }
+
+        private void ChangePackContentsPreview(int direction)
+        {
+            int count = GetPackContentsCardCount();
+            if (count <= 0) return;
+            packContentsPreviewIndex = (packContentsPreviewIndex + direction + count) % count;
+            BuildPackContentsPreviewCard();
+        }
+
+        private void DrawActualPackContentsOverlay(float scale, float offsetX, float offsetY)
+        {
+            EnsureDiscardStyles();
+            if (packContentsTitleStyle == null)
+            {
+                packContentsTitleStyle = new GUIStyle(GUI.skin.label)
+                {
+                    font = font,
+                    fontSize = 30,
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.MiddleCenter,
+                    normal = { textColor = Color.white }
+                };
+                packContentsCardStyle = new GUIStyle(packContentsTitleStyle)
+                {
+                    fontSize = 22
+                };
+            }
+
+            int count = GetPackContentsCardCount();
+            Matrix4x4 previousMatrix = GUI.matrix;
+            GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
+                new Vector3(scale, scale, 1f));
+            GUI.Label(new Rect(390f, 28f, 500f, 52f), Ui("\uBD09\uC785 \uCE74\uB4DC", "Included cards"), packContentsTitleStyle);
+            if (GUI.Button(new Rect(1060f, 28f, 170f, 52f), Ui("\uB2EB\uAE30", "Close"), discardButtonStyle))
+            {
+                GUI.matrix = previousMatrix;
+                ClosePackContents();
+                return;
+            }
+
+            if (count > 0)
+            {
+                if (GUI.Button(new Rect(250f, 320f, 150f, 62f), "\u25C0", discardButtonStyle))
+                    ChangePackContentsPreview(-1);
+                if (GUI.Button(new Rect(880f, 320f, 150f, 62f), "\u25B6", discardButtonStyle))
+                    ChangePackContentsPreview(1);
+                GUI.Label(new Rect(490f, 642f, 300f, 42f),
+                    (packContentsPreviewIndex + 1) + " / " + count, packContentsCardStyle);
+            }
+            else
+            {
+                GUI.Label(new Rect(390f, 320f, 500f, 60f),
+                    Ui("\uD45C\uC2DC\uD560 \uCE74\uB4DC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.", "No cards to display."), packContentsCardStyle);
+            }
+            GUI.matrix = previousMatrix;
+        }
+
+        private bool DrawActivePackContentsButton(float scale, float offsetX, float offsetY)
+        {
+            EnsureDiscardStyles();
+            Rect buttonRect = new Rect(880f, 105f, 54f, 54f);
+            Matrix4x4 previousMatrix = GUI.matrix;
+            GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
+                new Vector3(scale, scale, 1f));
+            bool clicked = GUI.Button(buttonRect, "?", discardButtonStyle);
+            GUI.matrix = previousMatrix;
+            if (clicked) OpenPackContents(activePackData);
+            return clicked || Event.current.type == EventType.Used;
+        }
+
+        private void DrawRunEndOverlay(float scale, float offsetX, float offsetY)
+        {
+            EnsureDiscardStyles();
+            if (runEndTitleStyle == null)
+            {
+                runEndTitleStyle = new GUIStyle(GUI.skin.label)
+                {
+                    font = font,
+                    fontSize = 44,
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.MiddleCenter,
+                    normal = { textColor = Color.black }
+                };
+                runEndTitleStyle.hover.textColor = Color.black;
+                runEndTitleStyle.active.textColor = Color.black;
+                runEndTitleStyle.focused.textColor = Color.black;
+                runEndTitleStyle.onNormal.textColor = Color.black;
+                runEndTitleStyle.onHover.textColor = Color.black;
+                runEndTitleStyle.onActive.textColor = Color.black;
+                runEndTitleStyle.onFocused.textColor = Color.black;
+                runEndBodyStyle = new GUIStyle(runEndTitleStyle)
+                {
+                    fontSize = 25,
+                    fontStyle = FontStyle.Normal,
+                    wordWrap = true
+                };
+                runEndButtonStyle = new GUIStyle(GUI.skin.button)
+                {
+                    font = font,
+                    fontSize = 25,
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.MiddleCenter
+                };
+                runEndButtonStyle.normal.textColor = Color.black;
+                runEndButtonStyle.hover.textColor = Color.black;
+                runEndButtonStyle.active.textColor = Color.black;
+                runEndButtonStyle.focused.textColor = Color.black;
+                runEndButtonStyle.border = new RectOffset(12, 12, 12, 12);
+                runEndButtonStyle.normal.background = roundedDiscardTexture;
+                runEndButtonStyle.hover.background = roundedDiscardTexture;
+                runEndButtonStyle.active.background = roundedDiscardTexture;
+                runEndButtonStyle.focused.background = roundedDiscardTexture;
+            }
+
+            Matrix4x4 previousMatrix = GUI.matrix;
+            GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
+                new Vector3(scale, scale, 1f));
+            GUI.Box(new Rect(270f, 145f, 740f, 410f), GUIContent.none, discardPanelStyle);
+
+            bool cleared = phase == RevealPhase.RunCleared;
+            int goalIndex = Mathf.Clamp(currentGoalIndex, 0, GoalScores.Length - 1);
+            int targetScore = GoalScores[goalIndex];
+            string title = cleared ? Ui("\uB7F0 \uD074\uB9AC\uC5B4!", "RUN CLEARED!") : Ui("\uAC8C\uC784 \uC624\uBC84", "GAME OVER");
+            string body = cleared
+                ? Ui("6\uB2E8\uACC4 \uBAA9\uD45C\uB97C \uBAA8\uB450 \uB2EC\uC131\uD588\uC2B5\uB2C8\uB2E4.\n\uCD5C\uC885 \uC810\uC218  ",
+                    "All 6 goals cleared.\nFinal score  ") + totalScore.ToString("N0")
+                : Ui("\uBAA9\uD45C \uC810\uC218\uC5D0 \uB3C4\uB2EC\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.\n\uB77C\uC6B4\uB4DC \uC810\uC218  ",
+                    "Goal score not reached.\nRound score  ")
+                    + roundScore.ToString("N0") + " / " + targetScore.ToString("N0")
+                    + Ui("\n\uCD1D\uC810  ", "\nTotal  ") + totalScore.ToString("N0");
+            GUI.Label(new Rect(320f, 185f, 640f, 90f), title, runEndTitleStyle);
+            GUI.Label(new Rect(340f, 285f, 600f, 110f), body, runEndBodyStyle);
+            if (GUI.Button(new Rect(360f, 430f, 260f, 70f), Ui("\uACF5\uC720", "Share"), runEndButtonStyle))
+                ShareCurrentResult();
+            string playButtonText = sharedResultMode
+                ? Ui("\uB3C4\uC804\uD558\uAE30", "Challenge")
+                : Ui("\uB2E4\uC2DC \uC2DC\uC791", "Restart");
+            if (GUI.Button(new Rect(660f, 430f, 260f, 70f), playButtonText, runEndButtonStyle))
+                StartNewRun();
+            if (!string.IsNullOrEmpty(shareFeedback) && Time.unscaledTime < shareFeedbackUntil)
+                GUI.Label(new Rect(340f, 508f, 600f, 38f), shareFeedback, runEndBodyStyle);
             GUI.matrix = previousMatrix;
         }
 
@@ -1568,21 +4367,32 @@ namespace CardOpen.Prototype
                 GUI.Label(new Rect(490f, 18f, 300f, 48f),
                     GetRarityDisplayName(inspectedCard.Rarity), deckRarityStyle);
                 GUI.color = previousColor;
+                string progressText = GetDeckProgressText(inspectedCard);
+                if (!string.IsNullOrEmpty(progressText))
+                {
+                    EnsureDeckStatusStyles();
+                    DrawStatusLabelWithShadow(new Rect(855f, 270f, 390f, 120f),
+                        progressText, deckInspectionStatusStyle, new Color(0.55f, 0.95f, 1f));
+                }
             }
 
-            if (!discardConfirmationVisible)
+            if (IsDeckInspectionReadOnly())
             {
-                if (GUI.Button(new Rect(550f, 646f, 180f, 52f), "카드 버리기", discardButtonStyle))
+                discardConfirmationVisible = false;
+            }
+            else if (!discardConfirmationVisible)
+            {
+                if (GUI.Button(new Rect(550f, 646f, 180f, 52f), Ui("\uCE74\uB4DC \uBC84\uB9AC\uAE30", "Discard card"), discardButtonStyle))
                     discardConfirmationVisible = true;
             }
             else
             {
                 Rect panelRect = new Rect(430f, 252f, 420f, 206f);
                 GUI.Box(panelRect, GUIContent.none, discardPanelStyle);
-                GUI.Label(new Rect(455f, 278f, 370f, 64f), "이 카드를 버릴까요?", discardMessageStyle);
-                if (GUI.Button(new Rect(480f, 370f, 140f, 52f), "버리기", discardButtonStyle))
+                GUI.Label(new Rect(455f, 278f, 370f, 64f), Ui("\uC774 \uCE74\uB4DC\uB97C \uBC84\uB9B4\uAE4C\uC694?", "Discard this card?"), discardMessageStyle);
+                if (GUI.Button(new Rect(480f, 370f, 140f, 52f), Ui("\uBC84\uB9AC\uAE30", "Discard"), discardButtonStyle))
                     DiscardInspectedDeckCard();
-                if (GUI.Button(new Rect(660f, 370f, 140f, 52f), "취소", discardButtonStyle))
+                if (GUI.Button(new Rect(660f, 370f, 140f, 52f), Ui("\uCDE8\uC18C", "Cancel"), discardButtonStyle))
                     discardConfirmationVisible = false;
             }
 
@@ -1590,14 +4400,119 @@ namespace CardOpen.Prototype
             GUI.matrix = previousMatrix;
         }
 
-        private static string GetRarityDisplayName(global::CardRarity rarity)
+        private string GetDeckProgressText(StoredCard card, bool includeEquipment = true)
+        {
+            if (card == null || card.Data == null || card.Data.DeckAbilities == null) return string.Empty;
+            List<string> statusLines = new List<string>();
+            if (includeEquipment && card.EquippedMagic != null && card.EquippedMagic.Data != null)
+                statusLines.Add("마법: " + card.EquippedMagic.Data.Name);
+            if (includeEquipment && card.EquippedWeapon != null && card.EquippedWeapon.Data != null)
+                statusLines.Add("무기: " + card.EquippedWeapon.Data.Name);
+            int effectiveCopies = GetEffectiveDeckCopyCount(card);
+            for (int i = 0; i < card.Data.DeckAbilities.Count; i++)
+            {
+                global::CardDeckAbility ability = card.Data.DeckAbilities[i];
+                if (ability == null) continue;
+                if (ability.Effect == global::DeckAbilityEffect.TransformAfterPacks)
+                {
+                    card.PacksElapsedByAbility.TryGetValue(i, out int elapsedPacks);
+                    statusLines.Add(elapsedPacks + "/" + Mathf.Max(1, ability.PacksToTransform));
+                }
+                if (ability.Effect == global::DeckAbilityEffect.AccumulateScoreBonusPerDraw
+                    || ability.Effect == global::DeckAbilityEffect.AccumulatePercentAtStackThreshold
+                    || ability.Effect == global::DeckAbilityEffect.AccumulateScoreBonusEfficiencyByNumber)
+                {
+                    card.AccumulatedPercentByAbility.TryGetValue(i, out float accumulatedPercent);
+                    statusLines.Add(accumulatedPercent.ToString("0.#") + "%");
+                }
+                if (ability.Effect == global::DeckAbilityEffect.GrantTemporaryPercentForNextDraws)
+                {
+                    card.RemainingDrawsByAbility.TryGetValue(i, out int remainingDraws);
+                    if (remainingDraws > 0)
+                        statusLines.Add(remainingDraws + "\uD68C");
+                }
+                if (ability.Effect == global::DeckAbilityEffect.AccumulateFlatScorePerDraw)
+                {
+                    card.AccumulatedFlatScoreByAbility.TryGetValue(i, out int accumulatedScore);
+                    statusLines.Add(accumulatedScore + "\uC810");
+                }
+                if (IsStackThresholdEffect(ability.Effect)
+                    || ability.Effect == global::DeckAbilityEffect.AddScoreEveryOtherCardScoreEvents)
+                {
+                    int threshold = Mathf.Max(1, ability.StackThreshold);
+                    card.StackByAbilityCopy.TryGetValue(GetAbilityCopyKey(i, 0), out int currentStacks);
+                    string stackText = currentStacks + "/" + threshold;
+                    if (effectiveCopies > 1) stackText += " \u00D7" + effectiveCopies;
+                    statusLines.Add(stackText);
+                    if (ability.Effect == global::DeckAbilityEffect.AddSpecificCardAtStackThreshold
+                        && ability.MaxTriggersPerPack > 0)
+                    {
+                        card.PerPackTriggerCountByAbility.TryGetValue(i, out int usedThisPack);
+                        statusLines.Add(usedThisPack + "\uD68C");
+                    }
+                }
+            }
+            for (int i = 0; i < card.InheritedRelics.Count; i++)
+            {
+                StoredCard relic = card.InheritedRelics[i];
+                string relicProgress = GetDeckProgressText(relic, false);
+                if (string.IsNullOrWhiteSpace(relicProgress)) continue;
+                string relicName = GetInheritedRelicShortName(relic);
+                statusLines.Add(relicName + " " + relicProgress.Replace("\n", " / "));
+            }
+            return string.Join("\n", statusLines);
+        }
+
+        private static string GetInheritedRelicShortName(StoredCard relic)
+        {
+            if (relic == null || relic.Data == null) return "조립 유물";
+            switch (relic.Data.name)
+            {
+                case "MagicScrew": return "나사";
+                case "MagicWheel": return "바퀴";
+                case "MagicBattery": return "배터리";
+                case "MagicEngine": return "엔진";
+                default: return relic.Data.Name;
+            }
+        }
+        private static void DrawStatusLabelWithShadow(Rect rect, string text, GUIStyle style, Color color)
+        {
+            Color previousColor = GUI.color;
+            GUI.color = new Color(0f, 0f, 0f, 0.9f);
+            GUI.Label(new Rect(rect.x + 1.5f, rect.y + 1.5f, rect.width, rect.height), text, style);
+            GUI.color = color;
+            GUI.Label(rect, text, style);
+            GUI.color = previousColor;
+        }
+
+        private void EnsureDeckStatusStyles()
+        {
+            if (deckStatusStyle != null) return;
+            deckStatusStyle = new GUIStyle(GUI.skin.label)
+            {
+                font = font,
+                fontSize = 15,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.UpperCenter,
+                wordWrap = true,
+                normal = { textColor = Color.white }
+            };
+            deckInspectionStatusStyle = new GUIStyle(deckStatusStyle)
+            {
+                fontSize = 24,
+                alignment = TextAnchor.MiddleLeft
+            };
+        }
+
+        private string GetRarityDisplayName(global::CardRarity rarity)
         {
             switch (rarity)
             {
-                case global::CardRarity.Uncommon: return "고급";
-                case global::CardRarity.Rare: return "희귀";
-                case global::CardRarity.Epic: return "영웅";
-                default: return "일반";
+                case global::CardRarity.Uncommon: return Ui("\uACE0\uAE09", "Uncommon");
+                case global::CardRarity.Rare: return Ui("\uD76C\uADC0", "Rare");
+                case global::CardRarity.Epic: return Ui("\uC601\uC6C5", "Epic");
+                case global::CardRarity.Legendary: return Ui("\uC804\uC124", "Legendary");
+                default: return Ui("\uC77C\uBC18", "Common");
             }
         }
 
@@ -1608,6 +4523,7 @@ namespace CardOpen.Prototype
                 case global::CardRarity.Uncommon: return new Color(0.45f, 1f, 0.72f);
                 case global::CardRarity.Rare: return new Color(0.72f, 0.88f, 1f);
                 case global::CardRarity.Epic: return new Color(0.72f, 0.30f, 1f);
+                case global::CardRarity.Legendary: return new Color(1f, 0.72f, 0.20f);
                 default: return Color.white;
             }
         }
@@ -1692,10 +4608,21 @@ namespace CardOpen.Prototype
             {
                 discardedCard.IsStoredInDeck = false;
                 discardedCard.DeckSlot = -1;
+                if (discardedCard.EquippedMagic != null)
+                {
+                    discardedCard.EquippedMagic.IsStoredInDeck = false;
+                    discardedCard.EquippedMagic.DeckSlot = -1;
+                }
+                if (discardedCard.EquippedWeapon != null)
+                {
+                    discardedCard.EquippedWeapon.IsStoredInDeck = false;
+                    discardedCard.EquippedWeapon.DeckSlot = -1;
+                }
             }
             deckCards.RemoveAt(index);
             deckVisuals.RemoveAt(index);
             if (discardedVisual != null) Destroy(discardedVisual);
+            RefreshDeckCardDisplayNames();
             discardConfirmationVisible = false;
             CloseDeckInspection();
         }
@@ -1717,8 +4644,18 @@ namespace CardOpen.Prototype
             Color previousColor = GUI.color;
             GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
                 new Vector3(scale, scale, 1f));
-            GUI.Label(new Rect(24f, 516f, 260f, 34f), "덱  " + deckCards.Count + "/5", deckHeaderStyle);
-
+            GUI.Label(new Rect(24f, 516f, 260f, 34f), Ui("\uB371  ", "Deck  ") + deckCards.Count + "/5", deckHeaderStyle);
+            EnsureDeckStatusStyles();
+            for (int i = 0; i < deckCards.Count; i++)
+            {
+                StoredCard card = deckCards[i];
+                if (card == null) continue;
+                string progressText = GetDeckProgressText(card, false);
+                if (string.IsNullOrEmpty(progressText)) continue;
+                int slot = Mathf.Clamp(card.DeckSlot, 0, 4);
+                DrawStatusLabelWithShadow(new Rect(14f + slot * 74.25f, 674f, 80f, 40f),
+                    progressText, deckStatusStyle, new Color(0.55f, 0.95f, 1f));
+            }
 
             GUI.color = previousColor;
             GUI.matrix = previousMatrix;
@@ -1741,7 +4678,65 @@ namespace CardOpen.Prototype
             Matrix4x4 previousMatrix = GUI.matrix;
             GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
                 new Vector3(scale, scale, 1f));
-            GUI.Label(new Rect(390f, 52f, 500f, 42f), "팩 위쪽을 드래그해서 뜯기", packGuideStyle);
+            GUI.Label(new Rect(480f, 52f, 420f, 42f), Ui("\uD329 \uC704\uCABD\uC744 \uB4DC\uB798\uADF8\uD574\uC11C \uB73B\uAE30", "Drag pack top to open"), packGuideStyle);
+            GUI.matrix = previousMatrix;
+        }
+        private void DrawControlGuide(float scale, float offsetX, float offsetY)
+        {
+            EnsureDiscardStyles();
+            if (controlGuideStyle == null)
+            {
+                controlGuideStyle = new GUIStyle(GUI.skin.label)
+                {
+                    font = font,
+                    fontSize = 17,
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.UpperLeft,
+                    wordWrap = false,
+                    normal = { textColor = Color.white }
+                };
+                controlGuideTitleStyle = new GUIStyle(controlGuideStyle)
+                {
+                    fontSize = 22,
+                    alignment = TextAnchor.MiddleLeft
+                };
+                controlGuideToggleStyle = new GUIStyle(discardButtonStyle)
+                {
+                    fontSize = 18,
+                    alignment = TextAnchor.MiddleCenter,
+                    padding = new RectOffset(0, 0, 0, 0)
+                };
+            }
+
+            Matrix4x4 previousMatrix = GUI.matrix;
+            GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
+                new Vector3(scale, scale, 1f));
+            string title = Ui("조작법", "Controls");
+            GUI.Label(new Rect(24f, 132f, 180f, 38f), title, controlGuideTitleStyle);
+            float toggleX = 24f + controlGuideTitleStyle.CalcSize(new GUIContent(title)).x + 8f;
+            if (GUI.Button(new Rect(toggleX, 136f, 32f, 30f),
+                controlGuideOpen ? "-" : "+", controlGuideToggleStyle))
+            {
+                controlGuideOpen = !controlGuideOpen;
+                SaveUserSettings();
+            }
+
+            if (controlGuideOpen)
+            {
+                string guide = Ui(
+                    "팩 위쪽 드래그로 팩 뜯기\n"
+                    + "카드 드래그로 다음 카드\n"
+                    + "바깥 공간 드래그로 회전\n"
+                    + "카드를 덱으로 드래그하여 보관/교체\n"
+                    + "덱 카드 클릭으로 자세히 보기",
+                    "Drag pack top to open\n"
+                    + "Drag card for next card\n"
+                    + "Drag outside to rotate\n"
+                    + "Drag card to deck to store/swap\n"
+                    + "Click deck card to inspect");
+                DrawStatusLabelWithShadow(new Rect(24f, 180f, 340f, 154f), guide,
+                    controlGuideStyle, Color.white);
+            }
             GUI.matrix = previousMatrix;
         }
         private void ClearCards()

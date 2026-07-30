@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ceccc00981a4a44bb12cdaa8339d16c, type: 3}
+  m_Name: MagicSword
+  m_EditorClassIdentifier: Assembly-CSharp::CardData
+  Name: "\uB9C8\uBC95 \uAC80\uC220"
+  Description: "\uCE74\uB4DC\uC758 \uC22B\uC790\uB97C \uC2A4\uD0DD\uC73C\uB85C \uD68D\uB4DD,
+    3 \uC774\uC0C1\uC774 \uB418\uBA74 3\uAC1C \uC18C\uBAA8\uD574\uC11C \uC774\uBC88
+    \uD329\uB3D9\uC548 \uC9C0\uC18D\uB418\uB294 \uC810\uC218 \uBCF4\uB108\uC2A4 10%
+    \uD68D\uB4DD"
+  Rare: 1
+  Image: {fileID: 2800000, guid: 97eab458920045a499f1d6c8a3444027, type: 3}
+  FitBackgroundImageToWidth: 1
+  Tags: 02000000
+  DeckAbilities:
+  - Trigger: 6
+    Effect: 12
+    Score: 0
+    PercentBonus: 10
+    MaximumPercent: 0
+    NumberMultiplier: 1
+    PackCardCount: 0
+    ChancePercent: 0
+    ApplicableNumbers: 
+    ApplicableColors: 
+    ResetAccumulationAfterPack: 1
+    StackThreshold: 3
+    DurationDrawCount: 0
+    GeneratedCard: {fileID: 0}
+    TransformedCard: {fileID: 0}
+    PacksToTransform: 1
+    GeneratedCardTag: 0
+    MaxTriggersPerPack: 0
+    Description: "\uCE74\uB4DC\uC758 \uC22B\uC790\uB97C \uC2A4\uD0DD\uC73C\uB85C
+      \uD68D\uB4DD, 3 \uC774\uC0C1\uC774 \uB418\uBA74 3\uAC1C \uC18C\uBAA8\uD574\uC11C
+      \uC774\uBC88 \uD329\uB3D9\uC548 \uC9C0\uC18D\uB418\uB294 \uC810\uC218 \uBCF4\uB108\uC2A4
+      10% \uD68D\uB4DD"

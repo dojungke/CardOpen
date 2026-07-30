@@ -86,11 +86,61 @@ Shader "CardOpen/RarityFinish"
                 float angleResponse = 0.12 + 0.88 * pow(saturate(sin(anglePhase + randomValue * 18.0)), 8.0);
                 float sparkle = sparkleMask * sparkleShape * angleResponse;
 
-                float sparkleEnabled = step(0.5, _EffectMode);
+                float legendaryEnabled = step(2.5, _EffectMode);
+                float sparkleEnabled = step(0.5, _EffectMode) * (1.0 - legendaryEnabled);
                 float glossAlpha = (0.035 + angleGloss * 0.13 + angleBand * 0.22) * _Intensity;
                 float sparkleAlpha = sparkle * sparkleEnabled * 0.78 * _Intensity;
-                float alpha = saturate(glossAlpha + sparkleAlpha);
-                float3 color = _Tint.rgb * (0.8 + angleBand * 0.5 + sparkle * 0.65);
+
+                // Legendary: large four-point stars and long crystal shards.
+                // Their highlights and sweep positions respond only to the card viewing angle.
+                float2 legendaryGrid = input.uv * float2(10.0, 18.0);
+                float2 legendaryCell = floor(legendaryGrid);
+                float2 legendaryPoint = frac(legendaryGrid) - 0.5;
+                float legendaryRandom = RandomCell(legendaryCell + 37.0);
+                float legendaryMask = step(0.72, legendaryRandom);
+
+                float rotation = legendaryRandom * 6.2831853;
+                float rotationSin = sin(rotation);
+                float rotationCos = cos(rotation);
+                float2 rotatedPoint = float2(
+                    legendaryPoint.x * rotationCos - legendaryPoint.y * rotationSin,
+                    legendaryPoint.x * rotationSin + legendaryPoint.y * rotationCos);
+
+                float verticalRay = smoothstep(0.055, 0.0, abs(rotatedPoint.x))
+                    * smoothstep(0.46, 0.08, abs(rotatedPoint.y));
+                float horizontalRay = smoothstep(0.055, 0.0, abs(rotatedPoint.y))
+                    * smoothstep(0.34, 0.06, abs(rotatedPoint.x));
+                float diamondCore = smoothstep(0.18, 0.015,
+                    abs(rotatedPoint.x) + abs(rotatedPoint.y));
+                float crystalStar = saturate(max(verticalRay, horizontalRay) + diamondCore);
+
+                float legendaryPhase = dot(viewTilt, float2(9.7, 12.3));
+                float legendaryResponse = 0.08 + 0.92
+                    * pow(saturate(sin(legendaryPhase + legendaryRandom * 21.0)), 10.0);
+                float legendarySparkle = legendaryMask * crystalStar * legendaryResponse;
+
+                float legendarySweepCoordinate = frac(
+                    input.uv.x * 0.62 - input.uv.y * 0.26
+                    + dot(viewTilt, float2(0.58, -0.44)));
+                float legendarySweepA = smoothstep(0.38, 0.46, legendarySweepCoordinate)
+                    * (1.0 - smoothstep(0.46, 0.54, legendarySweepCoordinate));
+                float legendarySweepB = smoothstep(0.62, 0.67, legendarySweepCoordinate)
+                    * (1.0 - smoothstep(0.67, 0.72, legendarySweepCoordinate));
+                float legendarySweep = saturate(legendarySweepA + legendarySweepB * 0.62);
+
+                float legendaryAlpha = (legendarySparkle * 0.92
+                    + legendarySweep * 0.28 + angleGloss * 0.12)
+                    * legendaryEnabled * _Intensity;
+                float alpha = saturate(glossAlpha * (1.0 - legendaryEnabled)
+                    + sparkleAlpha + legendaryAlpha);
+
+                float3 regularColor = _Tint.rgb
+                    * (0.8 + angleBand * 0.5 + sparkle * 0.65);
+                float3 legendaryColor = lerp(
+                    _Tint.rgb,
+                    float3(0.88, 0.98, 1.0),
+                    saturate(legendarySparkle + legendarySweep * 0.55));
+                float3 color = lerp(regularColor, legendaryColor, legendaryEnabled);
                 return fixed4(color, alpha);
             }
             ENDCG
