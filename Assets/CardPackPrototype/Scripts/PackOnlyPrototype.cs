@@ -176,6 +176,7 @@ namespace CardOpen.Prototype
         private Quaternion gestureStartRotation;
         private Transform inspectionTarget;
         private Quaternion inspectionStartRotation;
+        private Coroutine inspectionReturnRoutine;
         private CardVisual activeSlidingCard;
         private bool cardTransitionActive;
         private bool transitionDragActive;
@@ -1194,7 +1195,13 @@ namespace CardOpen.Prototype
                 return;
             }
             if (inputEvent.type != EventType.MouseUp) return;
-            if (inspectionDragging) { inspectionDragging = false; inspectionTarget = null; }
+            if (inspectionDragging)
+            {
+                inspectionDragging = false;
+                Transform releasedTarget = inspectionTarget;
+                inspectionTarget = null;
+                BeginInspectionReturn(releasedTarget);
+            }
             else if (gestureDragging) { gestureDragging = false; CompleteObjectGesture(); }
             else return;
             inputEvent.Use();
@@ -1234,6 +1241,11 @@ namespace CardOpen.Prototype
 
         private void BeginObjectGesture()
         {
+            if (inspectionReturnRoutine != null)
+            {
+                StopCoroutine(inspectionReturnRoutine);
+                inspectionReturnRoutine = null;
+            }
             gestureDragging = true;
             inspectionDragging = false;
             Transform target = CurrentGestureTarget();
@@ -1246,6 +1258,11 @@ namespace CardOpen.Prototype
         {
             inspectionTarget = CurrentInspectionTarget();
             if (inspectionTarget == null) return;
+            if (inspectionReturnRoutine != null)
+            {
+                StopCoroutine(inspectionReturnRoutine);
+                inspectionReturnRoutine = null;
+            }
             inspectionDragging = true;
             gestureDragging = false;
             inspectionStartRotation = inspectionTarget.rotation;
@@ -1255,6 +1272,35 @@ namespace CardOpen.Prototype
         {
             if (inspectionTarget != null)
                 inspectionTarget.rotation = Quaternion.Euler(-dragDelta.y * 0.24f, dragDelta.x * 0.28f, 0f) * inspectionStartRotation;
+        }
+
+        private void BeginInspectionReturn(Transform target)
+        {
+            if (target == null) return;
+            if (inspectionReturnRoutine != null) StopCoroutine(inspectionReturnRoutine);
+            Vector3 restPosition = target == pack.transform ? PackHome : Vector3.zero;
+            inspectionReturnRoutine = StartCoroutine(ReturnInspectionPose(target, restPosition));
+        }
+
+        private IEnumerator ReturnInspectionPose(Transform target, Vector3 restPosition)
+        {
+            Vector3 startPosition = target.position;
+            Quaternion startRotation = target.rotation;
+            const float duration = 0.38f;
+            for (float elapsed = 0f; elapsed < duration; elapsed += Time.unscaledDeltaTime)
+            {
+                if (target == null) break;
+                float u = Mathf.SmoothStep(0f, 1f, elapsed / duration);
+                target.position = Vector3.Lerp(startPosition, restPosition, u);
+                target.rotation = Quaternion.Slerp(startRotation, Quaternion.identity, u);
+                yield return null;
+            }
+            if (target != null)
+            {
+                target.position = restPosition;
+                target.rotation = Quaternion.identity;
+            }
+            inspectionReturnRoutine = null;
         }
 
         private void UpdateObjectGesture()
@@ -4375,14 +4421,15 @@ namespace CardOpen.Prototype
                     + Ui("\n\uCD1D\uC810  ", "\nTotal  ") + totalScore.ToString("N0");
             GUI.Label(new Rect(320f, 185f, 640f, 90f), title, runEndTitleStyle);
             GUI.Label(new Rect(340f, 285f, 600f, 110f), body, runEndBodyStyle);
-            if (GUI.Button(new Rect(360f, 430f, 260f, 70f), Ui("\uACF5\uC720", "Share"), runEndButtonStyle))
+            if (!sharedResultMode && GUI.Button(new Rect(360f, 430f, 260f, 70f), Ui("\uACF5\uC720", "Share"), runEndButtonStyle))
                 ShareCurrentResult();
             string playButtonText = sharedResultMode
                 ? Ui("\uB3C4\uC804\uD558\uAE30", "Challenge")
                 : Ui("\uB2E4\uC2DC \uC2DC\uC791", "Restart");
-            if (GUI.Button(new Rect(660f, 430f, 260f, 70f), playButtonText, runEndButtonStyle))
+            float playButtonX = sharedResultMode ? 510f : 660f;
+            if (GUI.Button(new Rect(playButtonX, 430f, 260f, 70f), playButtonText, runEndButtonStyle))
                 StartNewRun();
-            if (!string.IsNullOrEmpty(shareFeedback) && Time.unscaledTime < shareFeedbackUntil)
+            if (!sharedResultMode && !string.IsNullOrEmpty(shareFeedback) && Time.unscaledTime < shareFeedbackUntil)
                 GUI.Label(new Rect(340f, 508f, 600f, 38f), shareFeedback, runEndBodyStyle);
             GUI.matrix = previousMatrix;
         }
