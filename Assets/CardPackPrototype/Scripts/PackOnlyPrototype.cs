@@ -1322,6 +1322,8 @@ namespace CardOpen.Prototype
             Shader shader = Shader.Find(transparent ? "Universal Render Pipeline/Unlit" : "Universal Render Pipeline/Lit");
             if (shader == null) shader = Shader.Find(transparent ? "Unlit/Transparent" : "Standard");
             if (shader == null) shader = Shader.Find("Unlit/Texture");
+            if (shader == null)
+                throw new InvalidOperationException("CardOpen could not load a runtime texture shader. Check Always Included Shaders.");
             Material material = new Material(shader) { name = key, color = Color.white };
             material.mainTexture = texture;
             if (material.HasProperty("_BaseMap")) material.SetTexture("_BaseMap", texture);
@@ -1348,16 +1350,15 @@ namespace CardOpen.Prototype
 
             const float distance = 24f;
             float height = 2f * distance * Mathf.Tan(camera.fieldOfView * 0.5f * Mathf.Deg2Rad);
-            GameObject background = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            background.name = "2D Background";
+            GameObject background = CreateQuadObject("2D Background");
             background.transform.position = camera.transform.position + camera.transform.forward * distance;
             background.transform.rotation = Quaternion.LookRotation(-camera.transform.forward, camera.transform.up);
             background.transform.localScale = new Vector3(height * camera.aspect * 1.05f, height * 1.05f, 1f);
-            Collider backgroundCollider = background.GetComponent<Collider>();
-            if (backgroundCollider != null) Destroy(backgroundCollider);
 
             Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
             if (shader == null) shader = Shader.Find("Unlit/Texture");
+            if (shader == null)
+                throw new InvalidOperationException("CardOpen could not load the background shader. Check Always Included Shaders.");
             Material material = new Material(shader) { name = "Simple 2D Background", mainTexture = texture };
             if (material.HasProperty("_BaseMap")) material.SetTexture("_BaseMap", texture);
             if (material.HasProperty("_Cull")) material.SetFloat("_Cull", 0f);
@@ -1368,6 +1369,35 @@ namespace CardOpen.Prototype
             renderer.receiveShadows = false;
             renderer.sharedMaterial = material;
         }
+
+        private static GameObject CreateQuadObject(string objectName)
+        {
+            GameObject quadObject = new GameObject(objectName);
+            MeshFilter filter = quadObject.AddComponent<MeshFilter>();
+            quadObject.AddComponent<MeshRenderer>();
+
+            Mesh mesh = new Mesh { name = objectName + " Mesh" };
+            mesh.vertices = new[]
+            {
+                new Vector3(-0.5f, -0.5f, 0f),
+                new Vector3(0.5f, -0.5f, 0f),
+                new Vector3(0.5f, 0.5f, 0f),
+                new Vector3(-0.5f, 0.5f, 0f)
+            };
+            mesh.uv = new[]
+            {
+                new Vector2(0f, 0f),
+                new Vector2(1f, 0f),
+                new Vector2(1f, 1f),
+                new Vector2(0f, 1f)
+            };
+            mesh.triangles = new[] { 0, 1, 2, 0, 2, 3 };
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            filter.sharedMesh = mesh;
+            return quadObject;
+        }
+
         private Material GetTextureMaterial(string key, string resourcePath, bool transparent, int queueOffset = 0)
         {
             if (materials.TryGetValue(key, out Material cached)) return cached;
@@ -1382,6 +1412,8 @@ namespace CardOpen.Prototype
             Shader shader = Shader.Find("Universal Render Pipeline/Lit");
             if (shader == null) shader = Shader.Find("Standard");
             if (shader == null) shader = Shader.Find("Unlit/Color");
+            if (shader == null)
+                throw new InvalidOperationException("CardOpen could not load a runtime material shader. Check Always Included Shaders.");
             material = new Material(shader) { name = key, color = color };
             if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", smoothness);
             if (material.HasProperty("_Metallic")) material.SetFloat("_Metallic", smoothness * 0.25f);
@@ -3243,13 +3275,12 @@ namespace CardOpen.Prototype
 
         private void CreateDeckInspectionBackdrop()
         {
-            deckInspectionBackdrop = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            deckInspectionBackdrop.name = "Deck Inspection Backdrop";
-            Collider backdropCollider = deckInspectionBackdrop.GetComponent<Collider>();
-            if (backdropCollider != null) Destroy(backdropCollider);
+            deckInspectionBackdrop = CreateQuadObject("Deck Inspection Backdrop");
 
             Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
             if (shader == null) shader = Shader.Find("Unlit/Transparent");
+            if (shader == null)
+                throw new InvalidOperationException("CardOpen could not load the inspection backdrop shader. Check Always Included Shaders.");
             Material material = new Material(shader)
             {
                 name = "Deck Inspection Black",
