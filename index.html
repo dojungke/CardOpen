@@ -25,6 +25,7 @@
       </div>
     </div>
     <script>
+      window.cardOpenGameReady = false;
       var diagnostics = document.querySelector("#cardopen-diagnostics");
       function showDiagnostic(message) {
         diagnostics.style.display = "block";
@@ -72,6 +73,8 @@
         productName: "CardOpen",
         productVersion: "0.1.0",
         showBanner: unityShowBanner,
+        printErr: function(message) { console.error(message); showDiagnostic("Unity error: " + message); },
+        errorHandler: function(error, url, line) { showDiagnostic("Unity runtime error: " + error); return true; },
         // errorHandler: function(err, url, line) {
         //    alert("error " + err + " occurred at line " + line);
         //    // Return 'true' if you handled this error and don't want Unity
@@ -126,6 +129,7 @@
           document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
               }).then((unityInstance) => {
                 document.querySelector("#unity-loading-bar").style.display = "none";
+                setTimeout(function() { if (!window.cardOpenGameReady) showDiagnostic("Unity loaded, but game initialization did not complete."); }, 8000);
                 document.querySelector("#unity-fullscreen-button").onclick = () => {
                   unityInstance.SetFullscreen(1);
                 };
