@@ -22,7 +22,8 @@ MonoBehaviour:
   Rare: 1
   Image: {fileID: 2800000, guid: 97eab458920045a499f1d6c8a3444027, type: 3}
   FitBackgroundImageToWidth: 1
-  Tags: 02000000
+  Tags:
+  - 2
   DeckAbilities:
   - Trigger: 6
     Effect: 12

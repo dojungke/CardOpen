@@ -8,6 +8,7 @@ namespace CardOpen.Prototype
     public sealed class CardVisual : MonoBehaviour
     {
         private const int CardNameCharactersPerLine = 9;
+        private const int LatinCardNameCharactersPerLine = 20;
         private const float CardNameMaximumWidth = 1.32f;
         private const float CardNameMaximumHeight = 0.38f;
         private MeshRenderer cardRenderer;
@@ -92,7 +93,9 @@ namespace CardOpen.Prototype
             string displayName = FormatCardName(cardName, out int longestNameLine, out _);
             string description = BuildTaggedDescription(data,
                 data != null ? data.GetLocalizedDescription(useEnglish) : string.Empty, useEnglish);
-            float nameLengthScale = longestNameLine > 5 ? 5f / longestNameLine : 1f;
+            float nameScaleTarget = ContainsWideNameCharacter(cardName) ? 5f : 14f;
+            float nameLengthScale = longestNameLine > nameScaleTarget
+                ? nameScaleTarget / longestNameLine : 1f;
             float nameScale = 0.04f * nameLengthScale;
             CreateTextLayer("Card Name", displayName, new Vector3(0.20f, 1.39f, -0.0105f),
                 textFont, 64, nameScale, TextAnchor.MiddleCenter, TextAlignment.Center, textColor, 30,
@@ -107,7 +110,9 @@ namespace CardOpen.Prototype
             if (string.IsNullOrWhiteSpace(cardName)) return;
             string displayName = FormatCardName(cardName, out int longestNameLine, out _);
 
-            float nameLengthScale = longestNameLine > 5 ? 5f / longestNameLine : 1f;
+            float nameScaleTarget = ContainsWideNameCharacter(cardName) ? 5f : 14f;
+            float nameLengthScale = longestNameLine > nameScaleTarget
+                ? nameScaleTarget / longestNameLine : 1f;
             float characterSize = 0.04f * nameLengthScale;
             TextMesh[] textMeshes = GetComponentsInChildren<TextMesh>(true);
             for (int i = 0; i < textMeshes.Length; i++)
@@ -126,6 +131,8 @@ namespace CardOpen.Prototype
         {
             string normalized = (cardName ?? string.Empty).Replace("\r", string.Empty)
                 .Replace("\n", " ").Trim();
+            int charactersPerLine = ContainsWideNameCharacter(normalized)
+                ? CardNameCharactersPerLine : LatinCardNameCharactersPerLine;
             List<string> segments = new List<string>();
             int equipmentIndex = normalized.IndexOf('(');
             if (equipmentIndex > 0)
@@ -142,10 +149,10 @@ namespace CardOpen.Prototype
             for (int segmentIndex = 0; segmentIndex < segments.Count; segmentIndex++)
             {
                 string remaining = segments[segmentIndex];
-                while (remaining.Length > CardNameCharactersPerLine)
+                while (remaining.Length > charactersPerLine)
                 {
-                    int splitIndex = CardNameCharactersPerLine;
-                    for (int i = CardNameCharactersPerLine - 1; i > 0; i--)
+                    int splitIndex = charactersPerLine;
+                    for (int i = charactersPerLine - 1; i > 0; i--)
                     {
                         if (!char.IsWhiteSpace(remaining[i])) continue;
                         splitIndex = i;
@@ -154,7 +161,7 @@ namespace CardOpen.Prototype
                     string line = remaining.Substring(0, splitIndex).Trim();
                     if (line.Length == 0)
                     {
-                        splitIndex = CardNameCharactersPerLine;
+                        splitIndex = charactersPerLine;
                         line = remaining.Substring(0, splitIndex);
                     }
                     lines.Add(line);
@@ -168,6 +175,20 @@ namespace CardOpen.Prototype
                 longestLine = Mathf.Max(longestLine, lines[i].Length);
             lineCount = lines.Count;
             return string.Join("\n", lines);
+        }
+
+        private static bool ContainsWideNameCharacter(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return false;
+            for (int i = 0; i < text.Length; i++)
+            {
+                char c = text[i];
+                if ((c >= '\u1100' && c <= '\u11FF')
+                    || (c >= '\u3130' && c <= '\u318F')
+                    || (c >= '\uAC00' && c <= '\uD7AF')
+                    || (c >= '\u2E80' && c <= '\u9FFF')) return true;
+            }
+            return false;
         }
 
         public void SetDisplayDescription(global::CardData data, string description, bool useEnglish = false)
@@ -212,7 +233,7 @@ namespace CardOpen.Prototype
                 switch (data.Tags[i])
                 {
                     case global::CardTag.Nature: tagName = useEnglish ? "Nature" : "자연"; break;
-                    case global::CardTag.Equipment: tagName = useEnglish ? "Equipment" : "장비"; break;
+
                     case global::CardTag.Magic: tagName = useEnglish ? "Magic" : "마법"; break;
                     case global::CardTag.Rune: tagName = useEnglish ? "Rune" : "룬"; break;
                     case global::CardTag.Weapon: tagName = useEnglish ? "Weapon" : "무기"; break;

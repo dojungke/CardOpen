@@ -18,8 +18,7 @@ MonoBehaviour:
   EnglishDescription: "Increase score bonus efficiency by 30%.\nStacks up to 2 copies."
   Rare: 1
   Image: {fileID: 2800000, guid: a1b248a4afc9b5441a652d4acb83161e, type: 3}
-  Tags:
-  - 1
+  Tags: []
   MaxMergeCount: 2
   DeckAbilities:
   - Trigger: 6

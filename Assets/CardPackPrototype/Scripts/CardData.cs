@@ -25,15 +25,13 @@ public enum CardColor
 public enum CardTag
 {
     [InspectorName("자연")]
-    Nature,
-    [InspectorName("장비")]
-    Equipment,
+    Nature = 0,
     [InspectorName("마법")]
-    Magic,
+    Magic = 2,
     [InspectorName("룬")]
-    Rune,
+    Rune = 3,
     [InspectorName("무기")]
-    Weapon
+    Weapon = 4
 }
 
 public enum DeckAbilityTrigger
