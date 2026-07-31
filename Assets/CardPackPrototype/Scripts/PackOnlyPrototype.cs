@@ -101,6 +101,10 @@ namespace CardOpen.Prototype
         private const int FallbackCardsPerPack = 5;
         private const int PacksPerGoal = 3;
         private const int ScorePopupTrailCapacity = 5;
+        private const float ReferenceWidth = 1280f;
+        private const float ReferenceHeight = 720f;
+        private const float PortraitWidth = 720f;
+        private const float PortraitHeight = 1280f;
         private static readonly int[] GoalScores = { 5000, 10000, 20000, 35000, 60000, 100000 };
         private const float RevealedCardScale = 1.5f;
         private static readonly Rect PackTearZone = new Rect(410f, 0f, 460f, 380f);
@@ -123,6 +127,7 @@ namespace CardOpen.Prototype
         private Transform cardStack;
         private Transform deckRoot;
         private readonly List<GameObject> emptyDeckPlaceholders = new List<GameObject>();
+        private GameObject background;
         private GameObject deckInspectionBackdrop;
         private int inspectedDeckIndex = -1;
         private bool inspectionPackWasActive;
@@ -167,6 +172,7 @@ namespace CardOpen.Prototype
         private RevealPhase phase;
         private int cardIndex;
         private bool currentPackIsHolographic;
+        private bool packTearInProgress;
         private bool runeResonanceWasActive;
         private bool gestureDragging;
         private bool inspectionDragging;
@@ -517,6 +523,38 @@ namespace CardOpen.Prototype
         private void LateUpdate()
         {
             UpdatePendingScore();
+            if (background != null && Camera.main != null)
+                LayoutBackground(Camera.main);
+            if (pack != null && phase == RevealPhase.Pack)
+            {
+                pack.transform.localScale = Vector3.one * ResponsiveWorldScale(1.85f, 1.50f);
+                if (!gestureDragging && !inspectionDragging)
+                    pack.transform.position = CurrentPackHome;
+            }
+            if (packTearInProgress)
+            {
+                if (pack != null)
+                {
+                    pack.transform.position = CurrentPackHome;
+                    pack.transform.localScale = Vector3.one * ResponsiveWorldScale(1.85f, 1.50f);
+                }
+                if (cardStack != null)
+                {
+                    Vector3 tearCardOffset = IsPortraitUi ? Vector3.zero : PackedCardOffset;
+                    cardStack.position = CardHome + tearCardOffset - cardStack.rotation * CardHome;
+                }
+                for (int i = 0; i < cards.Count; i++)
+                    if (cards[i] != null && cards[i].gameObject.activeSelf)
+                        cards[i].transform.localScale = Vector3.one * CurrentRevealedCardScale;
+            }
+            if (phase == RevealPhase.CardBack || phase == RevealPhase.CardFront)
+            {
+                for (int i = 0; i < cards.Count; i++)
+                    if (cards[i] != null && cards[i].gameObject.activeSelf)
+                        cards[i].transform.localScale = Vector3.one * CurrentRevealedCardScale;
+            }
+            if (packContentsPreviewVisual != null)
+                packContentsPreviewVisual.transform.localScale = Vector3.one * CurrentRevealedCardScale;
             if (deckRoot != null) LayoutDeckVisuals();
         }
 
@@ -575,7 +613,7 @@ namespace CardOpen.Prototype
             CreateDeckInspectionBackdrop();
 
             GameObject packObject = new GameObject("3D Card Pack");
-            packObject.transform.position = PackHome;
+            packObject.transform.position = CurrentPackHome;
             pack = packObject.AddComponent<PackVisual>();
             Material packMaterial = GetMaterial("Pack", new Color(0.18f, 0.07f, 0.32f), 0.18f);
             Material packFrontMaterial = GetMaterial("PackFrontArtwork", Color.white, 0.82f);
@@ -753,6 +791,7 @@ namespace CardOpen.Prototype
         private void BeginSequence(bool chooseRandomPack)
         {
             currentPackOpenedForGoal = false;
+            packTearInProgress = false;
             if (chooseRandomPack)
             {
                 global::CardPackData selectedPack = LoadCardPackData();
@@ -779,8 +818,8 @@ namespace CardOpen.Prototype
             pack.ResetVisual();
             pack.SetHolographic(currentPackIsHolographic);
             tearVisual.ResetTear();
-            pack.transform.position = PackHome;
-            pack.transform.localScale = Vector3.one * 1.50f;
+            pack.transform.position = CurrentPackHome;
+            pack.transform.localScale = Vector3.one * ResponsiveWorldScale(1.85f, 1.50f);
             pack.transform.rotation = Quaternion.identity;
             phase = RevealPhase.Pack;
 
@@ -819,7 +858,7 @@ namespace CardOpen.Prototype
                     rarityPatternMaterial, illustrationMaterial, costMaterial, font);
                 bool isHolographic = currentPackIsHolographic || Random.value < 0.1f;
                 if (isHolographic) visual.EnableHologram();
-                visual.PrepareFaceUp(CardHome + new Vector3(0f, i * 0.025f, i * 0.065f), RevealedCardScale,
+                visual.PrepareFaceUp(CardHome + new Vector3(0f, i * 0.025f, i * 0.065f), CurrentRevealedCardScale,
                     (i - (cardCount - 1) * 0.5f) * 0.7f);
                 visual.gameObject.SetActive(false);
                 cards.Add(visual);
@@ -928,10 +967,12 @@ namespace CardOpen.Prototype
 
         private void CreatePackChoiceVisuals()
         {
+            float choiceX = IsPortraitUi ? 1.05f : 1.8f;
+            float choiceY = IsPortraitUi ? 0.42f : 0.55f;
             leftPackChoiceVisual = CreatePackChoiceVisual(
-                "Left Pack Choice", leftPackChoice, new Vector3(-1.8f, 0.55f, -0.65f));
+                "Left Pack Choice", leftPackChoice, new Vector3(-choiceX, choiceY, -0.65f));
             rightPackChoiceVisual = CreatePackChoiceVisual(
-                "Right Pack Choice", rightPackChoice, new Vector3(1.8f, 0.55f, -0.65f));
+                "Right Pack Choice", rightPackChoice, new Vector3(choiceX, choiceY, -0.65f));
         }
 
         private PackVisual CreatePackChoiceVisual(
@@ -952,7 +993,7 @@ namespace CardOpen.Prototype
 
             GameObject choiceObject = new GameObject(objectName);
             choiceObject.transform.position = position;
-            choiceObject.transform.localScale = Vector3.one * 1.18f;
+            choiceObject.transform.localScale = Vector3.one * ResponsiveWorldScale(1.45f, 1.18f);
             PackVisual choiceVisual = choiceObject.AddComponent<PackVisual>();
             choiceVisual.Build(
                 GetMaterial("Pack", new Color(0.18f, 0.07f, 0.32f), 0.18f),
@@ -1017,15 +1058,19 @@ namespace CardOpen.Prototype
         private IEnumerator RemovePack(Vector2 direction)
         {
             phase = RevealPhase.Animating;
+            packTearInProgress = true;
             PlayPackTearSound();
             currentPackOpenedForGoal = true;
             for (int i = 0; i < cards.Count; i++)
             {
-                cards[i].gameObject.SetActive(true);
+                cards[i].transform.localScale = Vector3.one * CurrentRevealedCardScale;
                 cards[i].SetFaceDetailsVisible(true);
+                cards[i].gameObject.SetActive(true);
             }
-            cards[0].PrepareFaceUp(CardHome, RevealedCardScale, 0f);
-            yield return tearVisual.PeelInDirection(direction, cardStack, CardHome, PackedCardOffset);
+            cards[0].PrepareFaceUp(CardHome, CurrentRevealedCardScale, 0f);
+            Vector3 tearCardOffset = IsPortraitUi ? Vector3.zero : PackedCardOffset;
+            yield return tearVisual.PeelInDirection(direction, cardStack, CardHome, tearCardOffset);
+            packTearInProgress = false;
             pack.gameObject.SetActive(false);
             TriggerPackOpenedDeckAbilities();
             yield return ReturnCardStackToFront();
@@ -1072,7 +1117,7 @@ namespace CardOpen.Prototype
                 {
                     CardVisual next = cards[cardIndex + 1];
                     next.gameObject.SetActive(true);
-                    next.PrepareFaceUp(CardHome + new Vector3(0f, 0.035f, 0.035f), RevealedCardScale, 0f);
+                    next.PrepareFaceUp(CardHome + new Vector3(0f, 0.035f, 0.035f), CurrentRevealedCardScale, 0f);
                     next.SetFaceDetailsVisible(true);
                 }
                 activeSlidingCard = current;
@@ -1090,7 +1135,7 @@ namespace CardOpen.Prototype
                     CompletePackAndBeginNextSequence();
                     yield break;
                 }
-                yield return cards[cardIndex].MoveToFront(CardHome, RevealedCardScale, 0f);
+                yield return cards[cardIndex].MoveToFront(CardHome, CurrentRevealedCardScale, 0f);
                 yield return RestoreCardStackRotation();
                 PlayCardRarityRevealSound(currentPackCards[cardIndex].Rarity);
                 AwardCurrentCardScore();
@@ -1120,25 +1165,90 @@ namespace CardOpen.Prototype
             }
             cardStack.rotation = Quaternion.identity;
         }
+        private static bool IsPortraitUi
+        {
+            get
+            {
+                Rect safeArea = Screen.safeArea;
+                return safeArea.height > safeArea.width;
+            }
+        }
+
+        private static float UiReferenceWidth { get { return IsPortraitUi ? PortraitWidth : ReferenceWidth; } }
+        private static float PortraitExtraHeight
+        {
+            get
+            {
+                if (!IsPortraitUi) return 0f;
+                Rect safeArea = Screen.safeArea;
+                if (safeArea.width <= 0f) return 0f;
+                float widthScale = safeArea.width / PortraitWidth;
+                if (widthScale <= 0f) return 0f;
+                return Mathf.Max(0f, safeArea.height / widthScale - PortraitHeight);
+            }
+        }
+        private static float UiReferenceHeight { get { return IsPortraitUi ? PortraitHeight + PortraitExtraHeight : ReferenceHeight; } }
+        private static float PortraitWorldScaleFactor
+        {
+            get
+            {
+                if (!IsPortraitUi) return 1f;
+                GetUiLayout(out float uiScale, out _, out _);
+                float screenHeightScale = Screen.height > 0 ? Screen.height / ReferenceHeight : 1f;
+                return screenHeightScale > 0f ? uiScale / screenHeightScale : 1f;
+            }
+        }
+
+        private static float ResponsiveWorldScale(float portraitScale, float landscapeScale)
+        {
+            return IsPortraitUi ? portraitScale * PortraitWorldScaleFactor : landscapeScale;
+        }
+        private static float CurrentRevealedCardScale { get { return ResponsiveWorldScale(2.10f, RevealedCardScale); } }
+
+        private static Rect UiRect(Rect landscape, Rect portrait)
+        {
+            return IsPortraitUi ? portrait : landscape;
+        }
+
+        private static void GetUiLayout(out float scale, out float offsetX, out float offsetY)
+        {
+            Rect safeArea = Screen.safeArea;
+            if (safeArea.width <= 0f || safeArea.height <= 0f)
+                safeArea = new Rect(0f, 0f, Screen.width, Screen.height);
+
+            scale = Mathf.Min(safeArea.width / UiReferenceWidth, safeArea.height / UiReferenceHeight);
+            offsetX = safeArea.xMin + (safeArea.width - UiReferenceWidth * scale) * 0.5f;
+            float safeTop = Screen.height - safeArea.yMax;
+            offsetY = safeTop + (safeArea.height - UiReferenceHeight * scale) * 0.5f;
+        }
+
+        private static Vector3 CurrentPackHome
+        {
+            get
+            {
+                if (!IsPortraitUi) return PackHome;
+                Camera camera = Camera.main;
+                if (camera == null) return PackHome;
+                Vector3 cardScreenPosition = camera.WorldToScreenPoint(CardHome);
+                float packDepth = camera.WorldToScreenPoint(PackHome).z;
+                return camera.ScreenToWorldPoint(new Vector3(cardScreenPosition.x, cardScreenPosition.y, packDepth));
+            }
+        }
+        private static Vector2 ScreenToReferencePoint(Vector2 screenPoint)
+        {
+            GetUiLayout(out float scale, out float offsetX, out float offsetY);
+            if (scale <= 0f) return Vector2.zero;
+            return new Vector2((screenPoint.x - offsetX) / scale, (screenPoint.y - offsetY) / scale);
+        }
+
         private void OnGUI()
         {
-            const float width = 1280f;
-            const float height = 720f;
-            float scale = Mathf.Min(Screen.width / width, Screen.height / height);
-            float offsetX = (Screen.width - width * scale) * 0.5f;
-            float offsetY = (Screen.height - height * scale) * 0.5f;
+            GetUiLayout(out float scale, out float offsetX, out float offsetY);
             if (settingsOpen)
             {
                 DrawSettingsOverlay(scale, offsetX, offsetY);
                 return;
             }
-            if (inspectedPackChoice != null)
-            {
-                DrawActualPackContentsOverlay(scale, offsetX, offsetY);
-                return;
-            }
-            if (DrawSettingsButton(scale, offsetX, offsetY)) return;
-
             Vector2 raw = Event.current.mousePosition;
             if (inspectedDeckIndex >= 0)
             {
@@ -1146,6 +1256,14 @@ namespace CardOpen.Prototype
                 HandleDeckPointer(raw, Event.current);
                 return;
             }
+            if (inspectedPackChoice != null)
+            {
+                DrawActualPackContentsOverlay(scale, offsetX, offsetY);
+                HandleDeckPointer(raw, Event.current);
+                return;
+            }
+            if (DrawSettingsButton(scale, offsetX, offsetY)) return;
+
 
             DrawScore(scale, offsetX, offsetY);
             DrawControlGuide(scale, offsetX, offsetY);
@@ -1176,11 +1294,16 @@ namespace CardOpen.Prototype
                 HandleAnimatingCardSwipe(point, inputEvent);
                 return;
             }
-            if (inputEvent.type == EventType.MouseDown && new Rect(0f, 0f, 1280f, 720f).Contains(point))
+            if (inputEvent.type == EventType.MouseDown
+                && new Rect(0f, 0f, UiReferenceWidth, UiReferenceHeight).Contains(point))
             {
                 dragStart = point;
                 dragDelta = Vector2.zero;
-                bool objectGesture = phase == RevealPhase.Pack ? PackTearZone.Contains(point) : CardGestureZone.Contains(point);
+                Rect packZone = IsPortraitUi
+                    ? new Rect(130f, 150f, 460f, 620f + PortraitExtraHeight * 0.5f) : PackTearZone;
+                Rect cardZone = IsPortraitUi
+                    ? new Rect(120f, 150f, 480f, 900f + PortraitExtraHeight) : CardGestureZone;
+                bool objectGesture = phase == RevealPhase.Pack ? packZone.Contains(point) : cardZone.Contains(point);
                 if (objectGesture) BeginObjectGesture(); else BeginInspection();
                 inputEvent.Use();
                 return;
@@ -1210,7 +1333,9 @@ namespace CardOpen.Prototype
         private void HandleAnimatingCardSwipe(Vector2 point, Event inputEvent)
         {
             if (!cardTransitionActive) return;
-            if (inputEvent.type == EventType.MouseDown && CardGestureZone.Contains(point))
+            Rect cardZone = IsPortraitUi
+                ? new Rect(120f, 150f, 480f, 900f + PortraitExtraHeight) : CardGestureZone;
+            if (inputEvent.type == EventType.MouseDown && cardZone.Contains(point))
             {
                 dragStart = point;
                 dragDelta = Vector2.zero;
@@ -1278,7 +1403,7 @@ namespace CardOpen.Prototype
         {
             if (target == null) return;
             if (inspectionReturnRoutine != null) StopCoroutine(inspectionReturnRoutine);
-            Vector3 restPosition = target == pack.transform ? PackHome : Vector3.zero;
+            Vector3 restPosition = target == pack.transform ? CurrentPackHome : Vector3.zero;
             inspectionReturnRoutine = StartCoroutine(ReturnInspectionPose(target, restPosition));
         }
 
@@ -1394,12 +1519,8 @@ namespace CardOpen.Prototype
             Texture2D texture = Resources.Load<Texture2D>("Textures/SimpleBackground");
             if (texture == null || camera == null) return;
 
-            const float distance = 24f;
-            float height = 2f * distance * Mathf.Tan(camera.fieldOfView * 0.5f * Mathf.Deg2Rad);
-            GameObject background = CreateQuadObject("2D Background");
-            background.transform.position = camera.transform.position + camera.transform.forward * distance;
-            background.transform.rotation = Quaternion.LookRotation(-camera.transform.forward, camera.transform.up);
-            background.transform.localScale = new Vector3(height * camera.aspect * 1.05f, height * 1.05f, 1f);
+            background = CreateQuadObject("2D Background");
+            LayoutBackground(camera);
 
             Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
             if (shader == null) shader = Shader.Find("Unlit/Texture");
@@ -1415,6 +1536,17 @@ namespace CardOpen.Prototype
             renderer.receiveShadows = false;
             renderer.sharedMaterial = material;
         }
+
+        private void LayoutBackground(Camera camera)
+        {
+            if (background == null || camera == null) return;
+            const float distance = 24f;
+            float height = 2f * distance * Mathf.Tan(camera.fieldOfView * 0.5f * Mathf.Deg2Rad);
+            background.transform.position = camera.transform.position + camera.transform.forward * distance;
+            background.transform.rotation = Quaternion.LookRotation(-camera.transform.forward, camera.transform.up);
+            background.transform.localScale = new Vector3(height * camera.aspect * 1.05f, height * 1.05f, 1f);
+        }
+
 
         private static GameObject CreateQuadObject(string objectName)
         {
@@ -2043,7 +2175,7 @@ namespace CardOpen.Prototype
             bool isHolographic = currentPackIsHolographic || Random.value < 0.1f;
             if (isHolographic) visual.EnableHologram();
             visual.PrepareFaceUp(CardHome + new Vector3(0f, index * 0.025f, index * 0.065f),
-                RevealedCardScale, index * 0.35f);
+                CurrentRevealedCardScale, index * 0.35f);
             // Cards generated by deck abilities are appended after the pack is already open.
             // Keep them visible immediately so the physical card stack grows at trigger time.
             visual.gameObject.SetActive(true);
@@ -3271,6 +3403,15 @@ namespace CardOpen.Prototype
             Camera camera = Camera.main;
             if (camera == null) return;
             float depth = camera.WorldToScreenPoint(CardHome).z;
+            GetUiLayout(out float uiScale, out float offsetX, out float offsetY);
+            float screenHeightScale = Screen.height > 0 ? Screen.height / ReferenceHeight : 1f;
+            float deckScale = screenHeightScale > 0f ? uiScale / screenHeightScale : 1f;
+            float deckLayoutY = IsPortraitUi ? 1165f + PortraitExtraHeight : 622.8f;
+            float inspectionLayoutY = IsPortraitUi ? 610f + PortraitExtraHeight * 0.5f : 352.8f;
+            float deckGuiY = offsetY + deckLayoutY * uiScale;
+            float inspectionGuiY = offsetY + inspectionLayoutY * uiScale;
+            float deckCardScale = IsPortraitUi ? 0.62f : 0.43f;
+            float deckStartX = IsPortraitUi ? 150f : 53.76f;
             bool isInspecting = inspectedDeckIndex >= 0 && inspectedDeckIndex < deckVisuals.Count;
 
             int liftedDeckSlot = deckCardDragActive && pressedDeckIndex >= 0 && pressedDeckIndex < deckCards.Count
@@ -3284,10 +3425,11 @@ namespace CardOpen.Prototype
                 bool showPlaceholder = (GetDeckIndexAtSlot(i) < 0 || i == liftedDeckSlot) && !isInspecting;
                 placeholder.SetActive(showPlaceholder);
                 if (!showPlaceholder) continue;
-                float viewportX = 0.042f + i * 0.058f;
+                float deckSpacing = IsPortraitUi ? 105f : 74.24f;
+                float deckGuiX = offsetX + (deckStartX + i * deckSpacing) * uiScale;
                 placeholder.transform.position =
-                    camera.ViewportToWorldPoint(new Vector3(viewportX, 0.135f, depth));
-                placeholder.transform.localScale = Vector3.one * 0.43f;
+                    camera.ScreenToWorldPoint(new Vector3(deckGuiX, Screen.height - deckGuiY, depth));
+                placeholder.transform.localScale = Vector3.one * (deckCardScale * deckScale);
                 placeholder.transform.rotation = camera.transform.rotation;
             }
 
@@ -3302,15 +3444,19 @@ namespace CardOpen.Prototype
 
                 if (selected)
                 {
-                    visual.transform.position = camera.ViewportToWorldPoint(new Vector3(0.5f, 0.51f, depth));
-                    visual.transform.localScale = Vector3.one * 1.72f;
+                    float inspectionGuiX = offsetX + UiReferenceWidth * 0.5f * uiScale;
+                    visual.transform.position = camera.ScreenToWorldPoint(
+                        new Vector3(inspectionGuiX, Screen.height - inspectionGuiY, depth));
+                    visual.transform.localScale = Vector3.one * ((IsPortraitUi ? 2.10f : 1.72f) * deckScale);
                 }
                 else
                 {
                     int slot = i < deckCards.Count && deckCards[i] != null ? deckCards[i].DeckSlot : i;
-                    float viewportX = 0.042f + Mathf.Clamp(slot, 0, 4) * 0.058f;
-                    visual.transform.position = camera.ViewportToWorldPoint(new Vector3(viewportX, 0.135f, depth));
-                    visual.transform.localScale = Vector3.one * 0.43f;
+                    float deckSpacing = IsPortraitUi ? 105f : 74.24f;
+                    float deckGuiX = offsetX + (deckStartX + Mathf.Clamp(slot, 0, 4) * deckSpacing) * uiScale;
+                    visual.transform.position = camera.ScreenToWorldPoint(
+                        new Vector3(deckGuiX, Screen.height - deckGuiY, depth));
+                    visual.transform.localScale = Vector3.one * (deckCardScale * deckScale);
                 }
                 if (!selected || (!deckInspectionDragging && !deckInspectionReturning))
                     visual.transform.rotation = camera.transform.rotation;
@@ -3460,7 +3606,10 @@ namespace CardOpen.Prototype
                     dragged.transform.position = camera.ScreenToWorldPoint(
                         new Vector3(screenPoint.x, Screen.height - screenPoint.y, depth));
                     dragged.transform.rotation = camera.transform.rotation;
-                    dragged.transform.localScale = Vector3.one * 0.52f;
+                    GetUiLayout(out float uiScale, out _, out _);
+                    float heightScale = Screen.height > 0 ? Screen.height / ReferenceHeight : 1f;
+                    float dragScale = heightScale > 0f ? uiScale / heightScale : 1f;
+                    dragged.transform.localScale = Vector3.one * (0.52f * dragScale);
                 }
                 inputEvent.Use();
                 return true;
@@ -3518,16 +3667,20 @@ namespace CardOpen.Prototype
         private static bool IsPointInDeckRow(Vector2 screenPoint)
         {
             if (Screen.width <= 0 || Screen.height <= 0) return false;
-            float normalizedX = screenPoint.x / Screen.width;
-            float normalizedY = screenPoint.y / Screen.height;
-            return normalizedX >= 0f && normalizedX <= 0.36f && normalizedY >= 0.72f && normalizedY <= 1f;
+            Vector2 referencePoint = ScreenToReferencePoint(screenPoint);
+            Rect deckRow = IsPortraitUi
+                ? new Rect(0f, 1035f + PortraitExtraHeight, PortraitWidth, 245f)
+                : new Rect(0f, 518.4f, 460.8f, 201.6f);
+            return deckRow.Contains(referencePoint);
         }
 
         private static int GetDeckSlotAtPoint(Vector2 screenPoint)
         {
-            if (!IsPointInDeckRow(screenPoint) || Screen.width <= 0) return -1;
-            float viewportX = screenPoint.x / Screen.width;
-            int slot = Mathf.RoundToInt((viewportX - 0.042f) / 0.058f);
+            if (!IsPointInDeckRow(screenPoint)) return -1;
+            Vector2 referencePoint = ScreenToReferencePoint(screenPoint);
+            float startX = IsPortraitUi ? 150f : 53.76f;
+            float spacing = IsPortraitUi ? 105f : 74.24f;
+            int slot = Mathf.RoundToInt((referencePoint.x - startX) / spacing);
             return Mathf.Clamp(slot, 0, 4);
         }
 
@@ -3668,7 +3821,7 @@ namespace CardOpen.Prototype
             {
                 CardVisual next = cards[cardIndex + 1];
                 next.gameObject.SetActive(true);
-                next.PrepareFaceUp(CardHome + new Vector3(0f, 0.035f, 0.035f), RevealedCardScale, 0f);
+                next.PrepareFaceUp(CardHome + new Vector3(0f, 0.035f, 0.035f), CurrentRevealedCardScale, 0f);
                 next.SetFaceDetailsVisible(true);
             }
 
@@ -3682,7 +3835,7 @@ namespace CardOpen.Prototype
                 yield break;
             }
 
-            yield return cards[cardIndex].MoveToFront(CardHome, RevealedCardScale, 0f);
+            yield return cards[cardIndex].MoveToFront(CardHome, CurrentRevealedCardScale, 0f);
             yield return RestoreCardStackRotation();
             PlayCardRarityRevealSound(currentPackCards[cardIndex].Rarity);
             AwardCurrentCardScore();
@@ -3732,7 +3885,7 @@ namespace CardOpen.Prototype
 
             deckObject.transform.SetParent(cardStack, false);
             deckObject.SetActive(true);
-            incomingVisual.PrepareFaceUp(CardHome, RevealedCardScale, 0f);
+            incomingVisual.PrepareFaceUp(CardHome, CurrentRevealedCardScale, 0f);
             incomingVisual.SetFaceDetailsVisible(true);
             cards[cardIndex] = incomingVisual;
             incomingVisual.SetDisplayName(GetStoredCardDisplayName(deckData));
@@ -3827,6 +3980,8 @@ namespace CardOpen.Prototype
                 if (leftPackChoiceVisual != null) leftPackChoiceVisual.gameObject.SetActive(false);
                 if (rightPackChoiceVisual != null) rightPackChoiceVisual.gameObject.SetActive(false);
             }
+            if (packContentsPreviewVisual != null)
+                packContentsPreviewVisual.gameObject.SetActive(false);
             if (deckInspectionBackdrop != null) deckInspectionBackdrop.SetActive(true);
             LayoutDeckVisuals();
         }
@@ -3843,12 +3998,14 @@ namespace CardOpen.Prototype
             inspectedDeckIndex = -1;
             if (pack != null) pack.gameObject.SetActive(inspectionPackWasActive);
             if (cardStack != null) cardStack.gameObject.SetActive(inspectionStackWasActive);
-            if (phase == RevealPhase.PackChoice)
+            if (phase == RevealPhase.PackChoice && inspectedPackChoice == null)
             {
                 if (leftPackChoiceVisual != null) leftPackChoiceVisual.gameObject.SetActive(true);
                 if (rightPackChoiceVisual != null) rightPackChoiceVisual.gameObject.SetActive(true);
             }
             if (deckInspectionBackdrop != null) deckInspectionBackdrop.SetActive(false);
+            if (inspectedPackChoice != null && packContentsPreviewVisual != null)
+                packContentsPreviewVisual.gameObject.SetActive(true);
             for (int i = 0; i < deckVisuals.Count; i++)
                 if (deckVisuals[i] != null) deckVisuals[i].SetActive(true);
             LayoutDeckVisuals();
@@ -3912,8 +4069,8 @@ namespace CardOpen.Prototype
 
                 float enter = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(age / 0.18f));
                 float fade = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.9f, 1.35f, age));
-                float x = Mathf.Lerp(783f, 837f, enter);
-                float y = 270f + popup.Lane * 72f - Mathf.Clamp01(age / 1.35f) * 24f;
+                float x = Mathf.Lerp(IsPortraitUi ? 470f : 783f, IsPortraitUi ? 500f : 837f, enter);
+                float y = (IsPortraitUi ? 350f + PortraitExtraHeight * 0.35f : 270f) + popup.Lane * 72f - Mathf.Clamp01(age / 1.35f) * 24f;
                 GUI.color = new Color(popup.Color.r, popup.Color.g, popup.Color.b, fade);
                 GUI.Label(new Rect(x, y, 210f, 76f), popup.Text, scorePopupStyle);
             }
@@ -3926,8 +4083,8 @@ namespace CardOpen.Prototype
             Matrix4x4 previousMatrix = GUI.matrix;
             GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
                 new Vector3(scale, scale, 1f));
-            bool clicked = GUI.Button(new Rect(1060f, 28f, 120f, 54f),
-                Ui("\uC124\uC815", "Settings"), discardButtonStyle);
+            Rect settingsButtonRect = UiRect(new Rect(1060f, 28f, 120f, 54f), new Rect(572f, 4f, 120f, 54f));
+            bool clicked = GUI.Button(settingsButtonRect, Ui("\uC124\uC815", "Settings"), discardButtonStyle);
             bool consumed = clicked || Event.current.type == EventType.Used;
             GUI.matrix = previousMatrix;
             if (clicked) settingsOpen = true;
@@ -3956,28 +4113,29 @@ namespace CardOpen.Prototype
 
             Matrix4x4 previousMatrix = GUI.matrix;
             Color previousColor = GUI.color;
+            GUI.matrix = Matrix4x4.identity;
+            GUI.color = new Color(0f, 0f, 0f, 0.68f);
+            GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.color = previousColor;
             GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
                 new Vector3(scale, scale, 1f));
-            GUI.color = new Color(0f, 0f, 0f, 0.68f);
-            GUI.DrawTexture(new Rect(0f, 0f, 1280f, 720f), Texture2D.whiteTexture);
-            GUI.color = previousColor;
-            GUI.Box(new Rect(390f, 145f, 500f, 430f), GUIContent.none, discardPanelStyle);
-            GUI.Label(new Rect(440f, 170f, 400f, 58f), Ui("\uC124\uC815", "Settings"), settingsTitleStyle);
+            GUI.Box(UiRect(new Rect(390f, 145f, 500f, 430f), new Rect(60f, 300f, 600f, 620f)), GUIContent.none, discardPanelStyle);
+            GUI.Label(UiRect(new Rect(440f, 170f, 400f, 58f), new Rect(110f, 335f, 500f, 70f)), Ui("\uC124\uC815", "Settings"), settingsTitleStyle);
 
-            GUI.Label(new Rect(455f, 250f, 180f, 44f), Ui("\uC5B8\uC5B4", "Language"), settingsLabelStyle);
-            if (GUI.Button(new Rect(455f, 300f, 170f, 52f),
+            GUI.Label(UiRect(new Rect(455f, 250f, 180f, 44f), new Rect(105f, 445f, 220f, 50f)), Ui("\uC5B8\uC5B4", "Language"), settingsLabelStyle);
+            if (GUI.Button(UiRect(new Rect(455f, 300f, 170f, 52f), new Rect(105f, 510f, 230f, 62f)),
                 (uiLanguage == 0 ? "\u25CF " : string.Empty) + "\uD55C\uAD6D\uC5B4", discardButtonStyle))
                 SetUiLanguage(0);
-            if (GUI.Button(new Rect(655f, 300f, 170f, 52f),
+            if (GUI.Button(UiRect(new Rect(655f, 300f, 170f, 52f), new Rect(385f, 510f, 230f, 62f)),
                 (uiLanguage == 1 ? "\u25CF " : string.Empty) + "English", discardButtonStyle))
                 SetUiLanguage(1);
 
-            GUI.Label(new Rect(455f, 380f, 260f, 44f),
+            GUI.Label(UiRect(new Rect(455f, 380f, 260f, 44f), new Rect(105f, 635f, 320f, 50f)),
                 Ui("\uC74C\uB7C9  ", "Volume  ") + Mathf.RoundToInt(masterVolume * 100f) + "%", settingsLabelStyle);
-            float changedVolume = GUI.HorizontalSlider(new Rect(455f, 438f, 370f, 28f), masterVolume, 0f, 1f);
+            float changedVolume = GUI.HorizontalSlider(UiRect(new Rect(455f, 438f, 370f, 28f), new Rect(105f, 710f, 510f, 34f)), masterVolume, 0f, 1f);
             if (!Mathf.Approximately(changedVolume, masterVolume)) SetMasterVolume(changedVolume);
 
-            if (GUI.Button(new Rect(555f, 500f, 170f, 52f), Ui("\uB2EB\uAE30", "Close"), discardButtonStyle))
+            if (GUI.Button(UiRect(new Rect(555f, 500f, 170f, 52f), new Rect(245f, 810f, 230f, 64f)), Ui("\uB2EB\uAE30", "Close"), discardButtonStyle))
                 settingsOpen = false;
             GUI.color = previousColor;
             GUI.matrix = previousMatrix;
@@ -4012,16 +4170,15 @@ namespace CardOpen.Prototype
                 new Vector3(scale, scale, 1f));
             string scoreText = Ui("\uCD1D\uC810  ", "Total  ") + totalScore.ToString("N0");
             if (pendingScore > 0) scoreText += "  + " + pendingScore.ToString("N0");
-            GUI.Label(new Rect(24f, 18f, 440f, 48f), scoreText, scoreStyle);
+            GUI.Label(UiRect(new Rect(24f, 18f, 440f, 48f), new Rect(24f, 0f, 440f, 48f)), scoreText, scoreStyle);
             int goalIndex = Mathf.Clamp(currentGoalIndex, 0, GoalScores.Length - 1);
             bool runEnded = phase == RevealPhase.GameOver || phase == RevealPhase.RunCleared;
             int openedPacksInGoal = completedPacks % PacksPerGoal + (currentPackOpenedForGoal ? 1 : 0);
             int packsRemaining = runEnded ? 0 : Mathf.Max(0, PacksPerGoal - openedPacksInGoal);
-            string goalText = Ui("\uBAA9\uD45C ", "Goal ") + (goalIndex + 1) + "/" + GoalScores.Length
-                + Ui("  \uB77C\uC6B4\uB4DC \uC810\uC218  ", "  Round score  ")
+            string goalText = Ui("\uB77C\uC6B4\uB4DC \uC810\uC218  ", "Round score  ")
                 + roundScore.ToString("N0") + " / " + GoalScores[goalIndex].ToString("N0")
                 + Ui("\uC810\n\uB0A8\uC740 \uD329 ", " pts\nPacks left ") + packsRemaining;
-            GUI.Label(new Rect(24f, 64f, 440f, 58f), goalText, goalStyle);
+            GUI.Label(UiRect(new Rect(24f, 64f, 440f, 58f), new Rect(24f, 48f, 440f, 58f)), goalText, goalStyle);
             GUI.matrix = previousMatrix;
         }
 
@@ -4051,13 +4208,30 @@ namespace CardOpen.Prototype
             Camera camera = Camera.main;
             if (camera == null || leftPackChoiceVisual == null || rightPackChoiceVisual == null) return;
 
+            if (IsPortraitUi)
+            {
+                float choiceDepth = camera.WorldToScreenPoint(PackHome).z;
+                float choiceScreenY = Screen.height - (offsetY + (550f + PortraitExtraHeight * 0.5f) * scale);
+                leftPackChoiceVisual.transform.position = camera.ScreenToWorldPoint(
+                    new Vector3(offsetX + 190f * scale, choiceScreenY, choiceDepth));
+                rightPackChoiceVisual.transform.position = camera.ScreenToWorldPoint(
+                    new Vector3(offsetX + 530f * scale, choiceScreenY, choiceDepth));
+            }
+            else
+            {
+                leftPackChoiceVisual.transform.position = new Vector3(-1.8f, 0.55f, -0.65f);
+                rightPackChoiceVisual.transform.position = new Vector3(1.8f, 0.55f, -0.65f);
+            }
+
             Rect leftRect = GetVisualScreenRect(leftPackChoiceVisual.gameObject, camera);
             Rect rightRect = GetVisualScreenRect(rightPackChoiceVisual.gameObject, camera);
             Vector2 mousePosition = Event.current.mousePosition;
             bool leftHovered = leftRect.Contains(mousePosition);
             bool rightHovered = rightRect.Contains(mousePosition);
-            leftPackChoiceVisual.transform.localScale = Vector3.one * (leftHovered ? 1.25f : 1.18f);
-            rightPackChoiceVisual.transform.localScale = Vector3.one * (rightHovered ? 1.25f : 1.18f);
+            float leftScale = ResponsiveWorldScale(leftHovered ? 1.58f : 1.45f, leftHovered ? 1.25f : 1.18f);
+            float rightScale = ResponsiveWorldScale(rightHovered ? 1.58f : 1.45f, rightHovered ? 1.25f : 1.18f);
+            leftPackChoiceVisual.transform.localScale = Vector3.one * leftScale;
+            rightPackChoiceVisual.transform.localScale = Vector3.one * rightScale;
 
             if (Event.current.type == EventType.MouseDown && leftHovered)
             {
@@ -4080,7 +4254,7 @@ namespace CardOpen.Prototype
             Matrix4x4 previousMatrix = GUI.matrix;
             GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
                 new Vector3(scale, scale, 1f));
-            GUI.Label(new Rect(390f, 28f, 500f, 52f), Ui("\uB2E4\uC74C \uD329\uC744 \uC120\uD0DD\uD558\uC138\uC694", "Choose the next pack"), packChoiceTitleStyle);
+            GUI.Label(UiRect(new Rect(390f, 28f, 500f, 52f), new Rect(110f, 105f, 500f, 52f)), Ui("\uB2E4\uC74C \uD329\uC744 \uC120\uD0DD\uD558\uC138\uC694", "Choose the next pack"), packChoiceTitleStyle);
 
             if (GUI.Button(leftInfoButtonRect, "?", discardButtonStyle))
                 OpenPackContents(leftPackChoice);
@@ -4276,7 +4450,7 @@ namespace CardOpen.Prototype
             visual.BuildFromData(data, previewColor, attributeMaterial,
                 GetTextureMaterial("CardBack", "CardAssets/Attributes/AttributeBackRemasterPurple", false),
                 rarityPatternMaterial, illustrationMaterial, costMaterial, font);
-            visual.PrepareFaceUp(new Vector3(0f, 0.92f, -0.24f), 1.5f, 0f);
+            visual.PrepareFaceUp(new Vector3(0f, 0.92f, -0.24f), CurrentRevealedCardScale, 0f);
             visual.SetFaceDetailsVisible(true);
             SetStoredVisualShadowMode(cardObject);
             packContentsPreviewVisual = visual;
@@ -4321,8 +4495,8 @@ namespace CardOpen.Prototype
             Matrix4x4 previousMatrix = GUI.matrix;
             GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
                 new Vector3(scale, scale, 1f));
-            GUI.Label(new Rect(390f, 28f, 500f, 52f), Ui("\uBD09\uC785 \uCE74\uB4DC", "Included cards"), packContentsTitleStyle);
-            if (GUI.Button(new Rect(1060f, 28f, 170f, 52f), Ui("\uB2EB\uAE30", "Close"), discardButtonStyle))
+            GUI.Label(UiRect(new Rect(390f, 28f, 500f, 52f), new Rect(110f, 28f, 500f, 52f)), Ui("\uBD09\uC785 \uCE74\uB4DC", "Included cards"), packContentsTitleStyle);
+            if (GUI.Button(UiRect(new Rect(1060f, 28f, 170f, 52f), new Rect(522f, 95f, 170f, 52f)), Ui("\uB2EB\uAE30", "Close"), discardButtonStyle))
             {
                 GUI.matrix = previousMatrix;
                 ClosePackContents();
@@ -4331,16 +4505,16 @@ namespace CardOpen.Prototype
 
             if (count > 0)
             {
-                if (GUI.Button(new Rect(250f, 320f, 150f, 62f), "\u25C0", discardButtonStyle))
+                if (GUI.Button(UiRect(new Rect(250f, 320f, 150f, 62f), new Rect(20f, 590f, 140f, 68f)), "\u25C0", discardButtonStyle))
                     ChangePackContentsPreview(-1);
-                if (GUI.Button(new Rect(880f, 320f, 150f, 62f), "\u25B6", discardButtonStyle))
+                if (GUI.Button(UiRect(new Rect(880f, 320f, 150f, 62f), new Rect(560f, 590f, 140f, 68f)), "\u25B6", discardButtonStyle))
                     ChangePackContentsPreview(1);
-                GUI.Label(new Rect(490f, 642f, 300f, 42f),
+                GUI.Label(UiRect(new Rect(490f, 642f, 300f, 42f), new Rect(210f, 1160f, 300f, 42f)),
                     (packContentsPreviewIndex + 1) + " / " + count, packContentsCardStyle);
             }
             else
             {
-                GUI.Label(new Rect(390f, 320f, 500f, 60f),
+                GUI.Label(UiRect(new Rect(390f, 320f, 500f, 60f), new Rect(110f, 590f, 500f, 60f)),
                     Ui("\uD45C\uC2DC\uD560 \uCE74\uB4DC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.", "No cards to display."), packContentsCardStyle);
             }
             GUI.matrix = previousMatrix;
@@ -4349,7 +4523,7 @@ namespace CardOpen.Prototype
         private bool DrawActivePackContentsButton(float scale, float offsetX, float offsetY)
         {
             EnsureDiscardStyles();
-            Rect buttonRect = new Rect(880f, 105f, 54f, 54f);
+            Rect buttonRect = UiRect(new Rect(880f, 105f, 54f, 54f), new Rect(638f, 105f, 54f, 54f));
             Matrix4x4 previousMatrix = GUI.matrix;
             GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
                 new Vector3(scale, scale, 1f));
@@ -4406,7 +4580,7 @@ namespace CardOpen.Prototype
             Matrix4x4 previousMatrix = GUI.matrix;
             GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
                 new Vector3(scale, scale, 1f));
-            GUI.Box(new Rect(270f, 145f, 740f, 410f), GUIContent.none, discardPanelStyle);
+            GUI.Box(UiRect(new Rect(270f, 145f, 740f, 410f), new Rect(50f, 330f, 620f, 610f)), GUIContent.none, discardPanelStyle);
 
             bool cleared = phase == RevealPhase.RunCleared;
             int goalIndex = Mathf.Clamp(currentGoalIndex, 0, GoalScores.Length - 1);
@@ -4419,15 +4593,17 @@ namespace CardOpen.Prototype
                     "Goal score not reached.\nRound score  ")
                     + roundScore.ToString("N0") + " / " + targetScore.ToString("N0")
                     + Ui("\n\uCD1D\uC810  ", "\nTotal  ") + totalScore.ToString("N0");
-            GUI.Label(new Rect(320f, 185f, 640f, 90f), title, runEndTitleStyle);
-            GUI.Label(new Rect(340f, 285f, 600f, 110f), body, runEndBodyStyle);
-            if (!sharedResultMode && GUI.Button(new Rect(360f, 430f, 260f, 70f), Ui("\uACF5\uC720", "Share"), runEndButtonStyle))
+            GUI.Label(UiRect(new Rect(320f, 185f, 640f, 90f), new Rect(90f, 385f, 540f, 100f)), title, runEndTitleStyle);
+            GUI.Label(UiRect(new Rect(340f, 285f, 600f, 110f), new Rect(90f, 505f, 540f, 180f)), body, runEndBodyStyle);
+            if (!sharedResultMode && GUI.Button(UiRect(new Rect(360f, 430f, 260f, 70f), new Rect(90f, 720f, 250f, 76f)), Ui("\uACF5\uC720", "Share"), runEndButtonStyle))
                 ShareCurrentResult();
             string playButtonText = sharedResultMode
                 ? Ui("\uB3C4\uC804\uD558\uAE30", "Challenge")
                 : Ui("\uB2E4\uC2DC \uC2DC\uC791", "Restart");
-            float playButtonX = sharedResultMode ? 510f : 660f;
-            if (GUI.Button(new Rect(playButtonX, 430f, 260f, 70f), playButtonText, runEndButtonStyle))
+            Rect playButtonRect = IsPortraitUi
+                ? new Rect(sharedResultMode ? 230f : 380f, 720f, 250f, 76f)
+                : new Rect(sharedResultMode ? 510f : 660f, 430f, 260f, 70f);
+            if (GUI.Button(playButtonRect, playButtonText, runEndButtonStyle))
                 StartNewRun();
             if (!sharedResultMode && !string.IsNullOrEmpty(shareFeedback) && Time.unscaledTime < shareFeedbackUntil)
                 GUI.Label(new Rect(340f, 508f, 600f, 38f), shareFeedback, runEndBodyStyle);
@@ -4447,14 +4623,14 @@ namespace CardOpen.Prototype
             {
                 StoredCard inspectedCard = deckCards[inspectedDeckIndex];
                 GUI.color = GetRarityDisplayColor(inspectedCard.Rarity);
-                GUI.Label(new Rect(490f, 18f, 300f, 48f),
+                GUI.Label(UiRect(new Rect(490f, 18f, 300f, 48f), new Rect(210f, 205f + PortraitExtraHeight * 0.5f, 300f, 52f)),
                     GetRarityDisplayName(inspectedCard.Rarity), deckRarityStyle);
                 GUI.color = previousColor;
                 string progressText = GetDeckProgressText(inspectedCard);
                 if (!string.IsNullOrEmpty(progressText))
                 {
                     EnsureDeckStatusStyles();
-                    DrawStatusLabelWithShadow(new Rect(855f, 270f, 390f, 120f),
+                    DrawStatusLabelWithShadow(UiRect(new Rect(855f, 270f, 390f, 120f), new Rect(150f, 950f + PortraitExtraHeight * 0.5f, 420f, 150f)),
                         progressText, deckInspectionStatusStyle, new Color(0.55f, 0.95f, 1f));
                 }
             }
@@ -4465,17 +4641,17 @@ namespace CardOpen.Prototype
             }
             else if (!discardConfirmationVisible)
             {
-                if (GUI.Button(new Rect(550f, 646f, 180f, 52f), Ui("\uCE74\uB4DC \uBC84\uB9AC\uAE30", "Discard card"), discardButtonStyle))
+                if (GUI.Button(UiRect(new Rect(550f, 646f, 180f, 52f), new Rect(270f, 1115f + PortraitExtraHeight * 0.5f, 180f, 62f)), Ui("\uCE74\uB4DC \uBC84\uB9AC\uAE30", "Discard card"), discardButtonStyle))
                     discardConfirmationVisible = true;
             }
             else
             {
-                Rect panelRect = new Rect(430f, 252f, 420f, 206f);
+                Rect panelRect = UiRect(new Rect(430f, 252f, 420f, 206f), new Rect(70f, 470f, 580f, 300f));
                 GUI.Box(panelRect, GUIContent.none, discardPanelStyle);
-                GUI.Label(new Rect(455f, 278f, 370f, 64f), Ui("\uC774 \uCE74\uB4DC\uB97C \uBC84\uB9B4\uAE4C\uC694?", "Discard this card?"), discardMessageStyle);
-                if (GUI.Button(new Rect(480f, 370f, 140f, 52f), Ui("\uBC84\uB9AC\uAE30", "Discard"), discardButtonStyle))
+                GUI.Label(UiRect(new Rect(455f, 278f, 370f, 64f), new Rect(110f, 515f, 500f, 80f)), Ui("\uC774 \uCE74\uB4DC\uB97C \uBC84\uB9B4\uAE4C\uC694?", "Discard this card?"), discardMessageStyle);
+                if (GUI.Button(UiRect(new Rect(480f, 370f, 140f, 52f), new Rect(130f, 650f, 190f, 64f)), Ui("\uBC84\uB9AC\uAE30", "Discard"), discardButtonStyle))
                     DiscardInspectedDeckCard();
-                if (GUI.Button(new Rect(660f, 370f, 140f, 52f), Ui("\uCDE8\uC18C", "Cancel"), discardButtonStyle))
+                if (GUI.Button(UiRect(new Rect(660f, 370f, 140f, 52f), new Rect(400f, 650f, 190f, 64f)), Ui("\uCDE8\uC18C", "Cancel"), discardButtonStyle))
                     discardConfirmationVisible = false;
             }
 
@@ -4560,11 +4736,30 @@ namespace CardOpen.Prototype
         }
         private static void DrawStatusLabelWithShadow(Rect rect, string text, GUIStyle style, Color color)
         {
+            GUIStyle drawStyle = style;
+            if (!style.wordWrap && style.fontSize > 0 && rect.width > 4f)
+            {
+                float availableWidth = rect.width - 4f;
+                float maxLineWidth = 0f;
+                string[] lines = text.Split('\n');
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    float lineWidth = style.CalcSize(new GUIContent(lines[i])).x;
+                    maxLineWidth = Mathf.Max(maxLineWidth, lineWidth);
+                }
+                if (maxLineWidth > availableWidth)
+                {
+                    drawStyle = new GUIStyle(style);
+                    drawStyle.fontSize = Mathf.Max(9,
+                        Mathf.FloorToInt(style.fontSize * availableWidth / maxLineWidth) - 1);
+                }
+            }
+
             Color previousColor = GUI.color;
             GUI.color = new Color(0f, 0f, 0f, 0.9f);
-            GUI.Label(new Rect(rect.x + 1.5f, rect.y + 1.5f, rect.width, rect.height), text, style);
+            GUI.Label(new Rect(rect.x + 1.5f, rect.y + 1.5f, rect.width, rect.height), text, drawStyle);
             GUI.color = color;
-            GUI.Label(rect, text, style);
+            GUI.Label(rect, text, drawStyle);
             GUI.color = previousColor;
         }
 
@@ -4574,10 +4769,10 @@ namespace CardOpen.Prototype
             deckStatusStyle = new GUIStyle(GUI.skin.label)
             {
                 font = font,
-                fontSize = 15,
+                fontSize = 18,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.UpperCenter,
-                wordWrap = true,
+                wordWrap = false,
                 normal = { textColor = Color.white }
             };
             deckInspectionStatusStyle = new GUIStyle(deckStatusStyle)
@@ -4681,6 +4876,8 @@ namespace CardOpen.Prototype
             return texture;
         }
 
+
+
         private void DiscardInspectedDeckCard()
         {
             int index = inspectedDeckIndex;
@@ -4727,7 +4924,7 @@ namespace CardOpen.Prototype
             Color previousColor = GUI.color;
             GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
                 new Vector3(scale, scale, 1f));
-            GUI.Label(new Rect(24f, 516f, 260f, 34f), Ui("\uB371  ", "Deck  ") + deckCards.Count + "/5", deckHeaderStyle);
+            GUI.Label(UiRect(new Rect(24f, 516f, 260f, 34f), new Rect(24f, 965f + PortraitExtraHeight, 260f, 42f)), Ui("\uB371  ", "Deck  ") + deckCards.Count + "/5", deckHeaderStyle);
             EnsureDeckStatusStyles();
             for (int i = 0; i < deckCards.Count; i++)
             {
@@ -4736,7 +4933,10 @@ namespace CardOpen.Prototype
                 string progressText = GetDeckProgressText(card, false);
                 if (string.IsNullOrEmpty(progressText)) continue;
                 int slot = Mathf.Clamp(card.DeckSlot, 0, 4);
-                DrawStatusLabelWithShadow(new Rect(14f + slot * 74.25f, 674f, 80f, 40f),
+                Rect statusRect = IsPortraitUi
+                    ? new Rect(100f + slot * 105f, 1050f + PortraitExtraHeight, 100f, 48f)
+                    : new Rect(14f + slot * 74.25f, 674f, 80f, 40f);
+                DrawStatusLabelWithShadow(statusRect,
                     progressText, deckStatusStyle, new Color(0.55f, 0.95f, 1f));
             }
 
@@ -4758,10 +4958,25 @@ namespace CardOpen.Prototype
                 packGuideStyle.normal.textColor = Color.white;
             }
 
+            float guideX = IsPortraitUi ? 150f : 430f;
+            float guideY = IsPortraitUi ? 260f + PortraitExtraHeight * 0.5f : 52f;
+            Camera camera = Camera.main;
+            if (pack != null && pack.gameObject.activeInHierarchy && camera != null && scale > 0f)
+            {
+                Vector3 packCenter = camera.WorldToScreenPoint(pack.transform.position);
+                if (packCenter.z > 0f)
+                {
+                    float packCenterX = (packCenter.x - offsetX) / scale;
+                    guideX = Mathf.Clamp(packCenterX - 210f, 8f, UiReferenceWidth - 428f);
+                    float packCenterY = (Screen.height - packCenter.y - offsetY) / scale;
+                    if (IsPortraitUi)
+                        guideY = Mathf.Clamp(packCenterY - 430f, 120f, UiReferenceHeight - 62f);
+                }
+            }
             Matrix4x4 previousMatrix = GUI.matrix;
             GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
                 new Vector3(scale, scale, 1f));
-            GUI.Label(new Rect(480f, 52f, 420f, 42f), Ui("\uD329 \uC704\uCABD\uC744 \uB4DC\uB798\uADF8\uD574\uC11C \uB73B\uAE30", "Drag pack top to open"), packGuideStyle);
+            GUI.Label(new Rect(guideX, guideY, 420f, 42f), Ui("\uD329 \uC704\uCABD\uC744 \uB4DC\uB798\uADF8\uD574\uC11C \uB73B\uAE30", "Drag pack top to open"), packGuideStyle);
             GUI.matrix = previousMatrix;
         }
         private void DrawControlGuide(float scale, float offsetX, float offsetY)
@@ -4811,11 +5026,13 @@ namespace CardOpen.Prototype
                     + "카드 드래그로 다음 카드\n"
                     + "바깥 공간 드래그로 회전\n"
                     + "카드를 덱으로 드래그하여 보관/교체\n"
+                    + "? \uBC84\uD2BC\uC73C\uB85C \uBD09\uC785 \uCE74\uB4DC \uD655\uC778\n"
                     + "덱 카드 클릭으로 자세히 보기",
                     "Drag pack top to open\n"
                     + "Drag card for next card\n"
                     + "Drag outside to rotate\n"
                     + "Drag card to deck to store/swap\n"
+                    + "Use ? to check included cards\n"
                     + "Click deck card to inspect");
                 DrawStatusLabelWithShadow(new Rect(24f, 180f, 340f, 154f), guide,
                     controlGuideStyle, Color.white);
