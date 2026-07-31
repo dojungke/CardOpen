@@ -14,6 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uC0C1\uC778"
   Description: "\uC810\uC218 \uBCF4\uB108\uC2A4 \uD6A8\uC728 20% \uC99D\uAC00"
+  EnglishName: "Merchant"
+  EnglishDescription: "Increase score bonus efficiency by 20%."
   Rare: 0
   Image: {fileID: 2800000, guid: e68fc045c33b6e14886996b635ffe7f8, type: 3}
   Tags:

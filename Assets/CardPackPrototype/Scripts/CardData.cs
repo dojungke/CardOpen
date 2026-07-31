@@ -110,6 +110,7 @@ public sealed class CardDeckAbility
     [InspectorName("자연 연쇄 발동 제외")]
     public bool ExcludeFromNatureChain;
     [TextArea(1, 3)] public string Description;
+    [TextArea(1, 3)] public string EnglishDescription;
 
     public bool CanBeTriggeredByNatureChain()
     {
@@ -136,6 +137,8 @@ public class CardData : ScriptableObject
 {
     public string Name;
     [TextArea(2, 5)] public string Description;
+    public string EnglishName;
+    [TextArea(2, 5)] public string EnglishDescription;
     public CardRarity Rare;
     public Texture2D Image;
     [Tooltip("Opaque background artwork fills the illustration width while preserving aspect ratio.")]
@@ -158,6 +161,16 @@ public class CardData : ScriptableObject
     public bool HasTag(CardTag tag)
     {
         return Tags != null && Tags.Contains(tag);
+    }
+
+    public string GetLocalizedName(bool english)
+    {
+        return english && !string.IsNullOrWhiteSpace(EnglishName) ? EnglishName : Name;
+    }
+
+    public string GetLocalizedDescription(bool english)
+    {
+        return english && !string.IsNullOrWhiteSpace(EnglishDescription) ? EnglishDescription : Description;
     }
 
     public string RarityAssetKey

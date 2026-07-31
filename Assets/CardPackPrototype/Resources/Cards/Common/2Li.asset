@@ -14,6 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uC774\uB9AC"
   Description: "\uC790\uC2E0\uACFC \uAC19\uC740 \uC0C9\uC758 \uCE74\uB4DC\uAC00 \uB098\uC62C \uC2DC 100\uC810 \uD68D\uB4DD"
+  EnglishName: "Wolf"
+  EnglishDescription: "Gain 100 points when a card with the same color as this card is drawn."
   Rare: 0
   Image: {fileID: 2800000, guid: 26305f4beb07bed4999431c95f9ba8dc, type: 3}
   Tags:

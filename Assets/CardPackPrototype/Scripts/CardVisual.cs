@@ -53,7 +53,8 @@ namespace CardOpen.Prototype
         }
 
         public void BuildFromData(global::CardData data, global::CardColor color, Material attributeMaterial, Material cardBackMaterial,
-            Material rarityPatternMaterial, Material illustrationMaterial, Material costMaterial, Font textFont)
+            Material rarityPatternMaterial, Material illustrationMaterial, Material costMaterial, Font textFont,
+            bool useEnglish = false)
         {
             GameObject cardMesh = new GameObject("Data Driven Rounded Card Mesh");
             cardMesh.transform.SetParent(transform, false);
@@ -85,9 +86,12 @@ namespace CardOpen.Prototype
                 : color == global::CardColor.Black
                 ? Color.white
                 : Color.black;
-            string cardName = data != null && !string.IsNullOrWhiteSpace(data.Name) ? data.Name : "이름 없음";
+            string localizedName = data != null ? data.GetLocalizedName(useEnglish) : string.Empty;
+            string cardName = !string.IsNullOrWhiteSpace(localizedName)
+                ? localizedName : useEnglish ? "Unnamed" : "이름 없음";
             string displayName = FormatCardName(cardName, out int longestNameLine, out _);
-            string description = BuildTaggedDescription(data, data != null ? data.Description : string.Empty);
+            string description = BuildTaggedDescription(data,
+                data != null ? data.GetLocalizedDescription(useEnglish) : string.Empty, useEnglish);
             float nameLengthScale = longestNameLine > 5 ? 5f / longestNameLine : 1f;
             float nameScale = 0.04f * nameLengthScale;
             CreateTextLayer("Card Name", displayName, new Vector3(0.20f, 1.39f, -0.0105f),
@@ -166,9 +170,9 @@ namespace CardOpen.Prototype
             return string.Join("\n", lines);
         }
 
-        public void SetDisplayDescription(global::CardData data, string description)
+        public void SetDisplayDescription(global::CardData data, string description, bool useEnglish = false)
         {
-            string displayDescription = BuildTaggedDescription(data, description);
+            string displayDescription = BuildTaggedDescription(data, description, useEnglish);
             TextMeshPro[] textMeshes = GetComponentsInChildren<TextMeshPro>(true);
             for (int i = 0; i < textMeshes.Length; i++)
             {
@@ -179,10 +183,12 @@ namespace CardOpen.Prototype
             }
         }
 
-        private static string BuildTaggedDescription(global::CardData data, string description)
+        private static string BuildTaggedDescription(global::CardData data, string description, bool useEnglish)
         {
             string body = description ?? string.Empty;
-            const string natureEffect = "다른 자연 카드의 능력이 발동할시 연쇄 발동";
+            string natureEffect = useEnglish
+                ? "Triggers in a chain when another Nature card's ability activates."
+                : "다른 자연 카드의 능력이 발동할시 연쇄 발동";
             bool hasNatureChainTarget = false;
             if (data != null && data.DeckAbilities != null)
             {
@@ -205,11 +211,11 @@ namespace CardOpen.Prototype
                 string tagName;
                 switch (data.Tags[i])
                 {
-                    case global::CardTag.Nature: tagName = "자연"; break;
-                    case global::CardTag.Equipment: tagName = "장비"; break;
-                    case global::CardTag.Magic: tagName = "마법"; break;
-                    case global::CardTag.Rune: tagName = "룬"; break;
-                    case global::CardTag.Weapon: tagName = "무기"; break;
+                    case global::CardTag.Nature: tagName = useEnglish ? "Nature" : "자연"; break;
+                    case global::CardTag.Equipment: tagName = useEnglish ? "Equipment" : "장비"; break;
+                    case global::CardTag.Magic: tagName = useEnglish ? "Magic" : "마법"; break;
+                    case global::CardTag.Rune: tagName = useEnglish ? "Rune" : "룬"; break;
+                    case global::CardTag.Weapon: tagName = useEnglish ? "Weapon" : "무기"; break;
                     default: tagName = data.Tags[i].ToString(); break;
                 }
                 if (!tagNames.Contains(tagName)) tagNames.Add(tagName);

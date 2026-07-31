@@ -14,6 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uB9C9\uB300"
   Description: "카드의 숫자가 3 이하일 시 50점 획득"
+  EnglishName: "Stick"
+  EnglishDescription: "Gain 50 points when a card numbered 3 or lower is drawn."
   Rare: 0
   Image: {fileID: 2800000, guid: 2670fbed92b71ed47993798302538cf9, type: 3}
   Tags:

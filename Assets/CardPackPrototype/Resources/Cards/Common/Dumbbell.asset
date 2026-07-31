@@ -14,6 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uC544\uB839"
   Description: "카드의 숫자가 4 이상일 시 50점 획득"
+  EnglishName: "Dumbbell"
+  EnglishDescription: "Gain 50 points when a card numbered 4 or higher is drawn."
   Rare: 0
   Image: {fileID: 2800000, guid: 27d187667a7941c4e929e40905ac812d, type: 3}
   Tags:

@@ -280,6 +280,7 @@ namespace CardOpen.Prototype
             if (uiLanguage == clamped) return;
             uiLanguage = clamped;
             SaveUserSettings();
+            RefreshLocalizedCardDisplays();
         }
 
         private void SetMasterVolume(float volume)
@@ -798,9 +799,9 @@ namespace CardOpen.Prototype
             Material illustrationMaterial = GetTextureMaterial("CardImage_" + data.GetHashCode(), data.Image, true, 10);
             visual.BuildFromData(data, card.Color, attributeMaterial,
                 GetTextureMaterial("CardBack", "CardAssets/Attributes/AttributeBackRemasterPurple", false),
-                rarityPatternMaterial, illustrationMaterial, costMaterial, font);
+                rarityPatternMaterial, illustrationMaterial, costMaterial, font, IsEnglishUi);
             visual.SetDisplayName(GetStoredCardDisplayName(card));
-            visual.SetDisplayDescription(card.Data, GetStoredCardDisplayDescription(card));
+            visual.SetDisplayDescription(card.Data, GetStoredCardDisplayDescription(card), IsEnglishUi);
             if (card.IsHolographic) visual.EnableHologram();
             visual.PrepareFaceUp(Vector3.zero, 1f, 0f);
             visual.SetFaceDetailsVisible(true);
@@ -902,7 +903,7 @@ namespace CardOpen.Prototype
                 Material illustrationMaterial = GetTextureMaterial("CardImage_" + data.GetHashCode(), data.Image, true, 10);
                 visual.BuildFromData(data, entry.Color, attributeMaterial,
                     GetTextureMaterial("CardBack", "CardAssets/Attributes/AttributeBackRemasterPurple", false),
-                    rarityPatternMaterial, illustrationMaterial, costMaterial, font);
+                    rarityPatternMaterial, illustrationMaterial, costMaterial, font, IsEnglishUi);
                 bool isHolographic = currentPackIsHolographic || Random.value < 0.1f;
                 if (isHolographic) visual.EnableHologram();
                 visual.PrepareFaceUp(CardHome + new Vector3(0f, i * 0.025f, i * 0.065f), CurrentRevealedCardScale,
@@ -947,6 +948,8 @@ namespace CardOpen.Prototype
                 runtimeFallbackCard = ScriptableObject.CreateInstance<global::CardData>();
                 runtimeFallbackCard.Name = "마법 총알";
                 runtimeFallbackCard.Description = "7의 피해를 줍니다.";
+                runtimeFallbackCard.EnglishName = "Magic Bullet";
+                runtimeFallbackCard.EnglishDescription = "Deals 7 damage.";
                 runtimeFallbackCard.Rare = global::CardRarity.Common;
                 runtimeFallbackEntry = new global::CardPackEntry
                 {
@@ -2218,7 +2221,7 @@ namespace CardOpen.Prototype
             Material illustrationMaterial = GetTextureMaterial("CardImage_" + data.GetHashCode(), data.Image, true, 10);
             visual.BuildFromData(data, entry.Color, attributeMaterial,
                 GetTextureMaterial("CardBack", "CardAssets/Attributes/AttributeBackRemasterPurple", false),
-                rarityPatternMaterial, illustrationMaterial, costMaterial, font);
+                rarityPatternMaterial, illustrationMaterial, costMaterial, font, IsEnglishUi);
             bool isHolographic = currentPackIsHolographic || Random.value < 0.1f;
             if (isHolographic) visual.EnableHologram();
             visual.PrepareFaceUp(CardHome + new Vector3(0f, index * 0.025f, index * 0.065f),
@@ -2407,7 +2410,8 @@ namespace CardOpen.Prototype
         private void AddDeckAbilityPopup(StoredCard owner, global::CardDeckAbility ability, int score,
             int copyIndex, int triggeredIndex, bool countForOtherCardScoreEvents = true)
         {
-            string ownerReason = (IsNatureChainForcedTrigger(owner, ability) ? "자연-" : string.Empty)
+            string ownerReason = (IsNatureChainForcedTrigger(owner, ability)
+                    ? Ui("자연-", "Nature - ") : string.Empty)
                 + GetStoredCardDisplayName(owner);
             if (copyIndex > 0) ownerReason += Ui(" \uD640\uB85C\uADF8\uB7A8", " Holographic");
             AddScorePopup(ownerReason + "  +" + score + Ui("\uC810", " pts"),
@@ -2455,35 +2459,13 @@ namespace CardOpen.Prototype
             int normalizedLane = ((lane % ScorePopupTrailCapacity) + ScorePopupTrailCapacity)
                 % ScorePopupTrailCapacity;
             float scheduledStartTime = startTime;
-            if (scorePopups.Count >= ScorePopupTrailCapacity)
+            for (int i = 0; i < scorePopups.Count; i++)
             {
-                int oldestIndex = 0;
-                for (int i = 1; i < scorePopups.Count; i++)
-                {
-                    if (scorePopups[i].StartTime < scorePopups[oldestIndex].StartTime)
-                        oldestIndex = i;
-                }
-
-                ScorePopup oldest = scorePopups[oldestIndex];
-                normalizedLane = oldest.Lane;
-                if (!oldest.AddedToPendingScore)
-                {
-                    oldest.AddedToPendingScore = true;
-                    pendingScore += oldest.Score;
-                }
-                scorePopups.RemoveAt(oldestIndex);
-                scheduledStartTime = Time.unscaledTime;
-            }
-            else
-            {
-                for (int i = 0; i < scorePopups.Count; i++)
-                {
-                    ScorePopup existing = scorePopups[i];
-                    existing.PlaybackSpeed = Mathf.Max(existing.PlaybackSpeed, 2f);
-                    if (existing.Lane != normalizedLane) continue;
-                    float laneSpacing = baseSameLaneSpacing / existing.PlaybackSpeed;
-                    scheduledStartTime = Mathf.Max(scheduledStartTime, existing.StartTime + laneSpacing);
-                }
+                ScorePopup existing = scorePopups[i];
+                existing.PlaybackSpeed = Mathf.Max(existing.PlaybackSpeed, 2f);
+                if (existing.Lane != normalizedLane) continue;
+                float laneSpacing = baseSameLaneSpacing / existing.PlaybackSpeed;
+                scheduledStartTime = Mathf.Max(scheduledStartTime, existing.StartTime + laneSpacing);
             }
 
             scorePopups.Add(new ScorePopup
@@ -2861,15 +2843,16 @@ namespace CardOpen.Prototype
         private string GetStoredCardDisplayName(StoredCard card)
         {
             if (card == null) return string.Empty;
-            string baseName = card.Data != null && !string.IsNullOrWhiteSpace(card.Data.Name)
-                ? card.Data.Name : card.Name;
-            string displayName = IsRuneCard(card) && IsRuneResonanceActive() ? baseName + "-공명" : baseName;
+            string localizedName = card.Data != null ? card.Data.GetLocalizedName(IsEnglishUi) : string.Empty;
+            string baseName = !string.IsNullOrWhiteSpace(localizedName) ? localizedName : card.Name;
+            string displayName = IsRuneCard(card) && IsRuneResonanceActive()
+                ? baseName + Ui("-공명", " - Resonant") : baseName;
             if (card.CombinedCopies > 1) displayName += " * " + card.CombinedCopies;
             List<string> equippedNames = new List<string>();
             if (card.EquippedMagic != null && card.EquippedMagic.Data != null)
-                equippedNames.Add(card.EquippedMagic.Data.Name);
+                equippedNames.Add(card.EquippedMagic.Data.GetLocalizedName(IsEnglishUi));
             if (card.EquippedWeapon != null && card.EquippedWeapon.Data != null)
-                equippedNames.Add(card.EquippedWeapon.Data.Name);
+                equippedNames.Add(card.EquippedWeapon.Data.GetLocalizedName(IsEnglishUi));
             return equippedNames.Count > 0
                 ? displayName + "(" + string.Join(", ", equippedNames) + ")"
                 : displayName;
@@ -2941,7 +2924,7 @@ namespace CardOpen.Prototype
         private string GetStoredCardDisplayDescription(StoredCard card)
         {
             if (card == null || card.Data == null) return string.Empty;
-            string description = card.Data.Description ?? string.Empty;
+            string description = card.Data.GetLocalizedDescription(IsEnglishUi) ?? string.Empty;
             description = ApplyInheritedRelicDescription(card, description);
             description = ApplyEquippedMagicDescription(card, description);
             description = ApplyEquippedWeaponDescription(card, description);
@@ -2955,10 +2938,10 @@ namespace CardOpen.Prototype
             return description;
         }
 
-        private static string ApplyInheritedRelicDescription(StoredCard card, string description)
+        private string ApplyInheritedRelicDescription(StoredCard card, string description)
         {
             if (card == null || card.InheritedRelics.Count == 0) return description;
-            List<string> lines = new List<string> { "[조립 유물 효과]" };
+            List<string> lines = new List<string> { Ui("[조립 유물 효과]", "[Assembled Relic Effects]") };
             for (int i = 0; i < card.InheritedRelics.Count; i++)
             {
                 StoredCard relic = card.InheritedRelics[i];
@@ -2971,17 +2954,21 @@ namespace CardOpen.Prototype
                     switch (ability.Effect)
                     {
                         case global::DeckAbilityEffect.AddScore:
-                            lines.Add("나사: 매 카드 +" + ability.Score * copies + "점");
+                            lines.Add(Ui("나사: 매 카드 +", "Screw: +") + ability.Score * copies
+                                + Ui("점", " pts each draw"));
                             break;
                         case global::DeckAbilityEffect.IncreaseScoreBonusEfficiency:
-                            lines.Add("바퀴: 보너스 효율 +" +
+                            lines.Add(Ui("바퀴: 보너스 효율 +", "Wheel: bonus efficiency +") +
                                 (ability.PercentBonus * copies).ToString("0.#") + "%");
                             break;
                         case global::DeckAbilityEffect.AccumulateScoreBonusPerDraw:
-                            string label = relic.Data.name == "MagicEngine" ? "엔진" : "배터리";
-                            string suffix = ability.ResetAccumulationAfterPack ? " (팩 종료 시 초기화)" : string.Empty;
-                            lines.Add(label + ": 매 카드 누적 +" +
-                                (ability.PercentBonus * copies).ToString("0.#") + "%" + suffix);
+                            string label = relic.Data.name == "MagicEngine"
+                                ? Ui("엔진", "Engine") : Ui("배터리", "Battery");
+                            string suffix = ability.ResetAccumulationAfterPack
+                                ? Ui(" (팩 종료 시 초기화)", " (resets after pack)") : string.Empty;
+                            lines.Add(label + Ui(": 매 카드 누적 +", ": accumulates +") +
+                                (ability.PercentBonus * copies).ToString("0.#")
+                                + Ui("%", "% each draw") + suffix);
                             break;
                     }
                 }
@@ -3011,18 +2998,22 @@ namespace CardOpen.Prototype
             return description;
         }
 
-        private static string ApplyEquippedMagicDescription(StoredCard card, string description)
+        private string ApplyEquippedMagicDescription(StoredCard card, string description)
         {
             if (card.Data == null || !card.Data.CanEquipMagic || card.EquippedMagic == null
                 || card.EquippedMagic.Data == null) return description;
             global::CardData magic = card.EquippedMagic.Data;
-            string equippedEffect = magic.Name + ": " + (magic.Description ?? string.Empty) + " (장착됨)";
+            string equippedEffect = magic.GetLocalizedName(IsEnglishUi) + ": "
+                + (magic.GetLocalizedDescription(IsEnglishUi) ?? string.Empty)
+                + Ui(" (장착됨)", " (Equipped)");
             string[] markers =
             {
                 "마법을 1장 장착할 수 있다.",
                 "마법을 1장 장착할 수 있다",
                 "마법을 하나 장착할 수 있다.",
-                "마법을 하나 장착할수 있다."
+                "마법을 하나 장착할수 있다.",
+                "Can equip 1 spell.",
+                "Can equip one spell."
             };
             for (int i = 0; i < markers.Length; i++)
             {
@@ -3033,18 +3024,22 @@ namespace CardOpen.Prototype
                 ? equippedEffect : description + "\n" + equippedEffect;
         }
 
-        private static string ApplyEquippedWeaponDescription(StoredCard card, string description)
+        private string ApplyEquippedWeaponDescription(StoredCard card, string description)
         {
             if (card.Data == null || !card.Data.CanEquipWeapon || card.EquippedWeapon == null
                 || card.EquippedWeapon.Data == null) return description;
             global::CardData weapon = card.EquippedWeapon.Data;
-            string equippedEffect = weapon.Name + ": " + (weapon.Description ?? string.Empty) + " (장착됨)";
+            string equippedEffect = weapon.GetLocalizedName(IsEnglishUi) + ": "
+                + (weapon.GetLocalizedDescription(IsEnglishUi) ?? string.Empty)
+                + Ui(" (장착됨)", " (Equipped)");
             string[] markers =
             {
                 "무기를 1개 장착할 수 있다.",
                 "무기를 1개 장착할 수 있다",
                 "무기를 하나 장착할 수 있다.",
-                "무기를 하나 장착할수 있다."
+                "무기를 하나 장착할수 있다.",
+                "Can equip 1 weapon.",
+                "Can equip one weapon."
             };
             for (int i = 0; i < markers.Length; i++)
             {
@@ -3070,6 +3065,20 @@ namespace CardOpen.Prototype
             return string.IsNullOrEmpty(after) ? result : result + "\n" + after;
         }
 
+        private void RefreshLocalizedCardDisplays()
+        {
+            for (int i = 0; i < cards.Count && i < currentPackCards.Count; i++)
+            {
+                CardVisual visual = cards[i];
+                StoredCard card = currentPackCards[i];
+                if (visual == null || card == null || card.Data == null) continue;
+                visual.SetDisplayName(GetStoredCardDisplayName(card));
+                visual.SetDisplayDescription(card.Data, GetStoredCardDisplayDescription(card), IsEnglishUi);
+            }
+            RefreshDeckCardDisplayNames();
+            if (packContentsPreviewVisual != null) BuildPackContentsPreviewCard();
+        }
+
         private void RefreshDeckCardDisplayNames()
         {
             bool resonanceActive = IsRuneResonanceActive();
@@ -3083,7 +3092,7 @@ namespace CardOpen.Prototype
                 if (visual == null) continue;
                 visual.SetDisplayName(GetStoredCardDisplayName(deckCards[i]));
                 visual.SetDisplayDescription(deckCards[i].Data,
-                    GetStoredCardDisplayDescription(deckCards[i]));
+                    GetStoredCardDisplayDescription(deckCards[i]), IsEnglishUi);
             }
         }
         private bool DoesDeckAbilityTrigger(global::CardDeckAbility ability, StoredCard owner, StoredCard revealedCard, int triggeredEffectCount = 0)
@@ -3936,7 +3945,7 @@ namespace CardOpen.Prototype
             incomingVisual.SetFaceDetailsVisible(true);
             cards[cardIndex] = incomingVisual;
             incomingVisual.SetDisplayName(GetStoredCardDisplayName(deckData));
-            incomingVisual.SetDisplayDescription(deckData.Data, GetStoredCardDisplayDescription(deckData));
+            incomingVisual.SetDisplayDescription(deckData.Data, GetStoredCardDisplayDescription(deckData), IsEnglishUi);
             RefreshDeckCardDisplayNames();
             LayoutDeckVisuals();
             return true;
@@ -4423,8 +4432,9 @@ namespace CardOpen.Prototype
                     if (entry.Card.Image != null)
                         GUI.DrawTexture(new Rect(x + 10f, y + 10f, 150f, 142f),
                             entry.Card.Image, ScaleMode.ScaleToFit, true);
-                    string cardName = !string.IsNullOrWhiteSpace(entry.Card.Name)
-                        ? entry.Card.Name : entry.Card.name;
+                    string localizedName = entry.Card.GetLocalizedName(IsEnglishUi);
+                    string cardName = !string.IsNullOrWhiteSpace(localizedName)
+                        ? localizedName : entry.Card.name;
                     GUI.Label(new Rect(x + 8f, y + 154f, 154f, 40f), cardName, packContentsCardStyle);
                     visibleIndex++;
                 }
@@ -4496,7 +4506,7 @@ namespace CardOpen.Prototype
                 "CardImage_" + data.GetHashCode(), data.Image, true, 10);
             visual.BuildFromData(data, previewColor, attributeMaterial,
                 GetTextureMaterial("CardBack", "CardAssets/Attributes/AttributeBackRemasterPurple", false),
-                rarityPatternMaterial, illustrationMaterial, costMaterial, font);
+                rarityPatternMaterial, illustrationMaterial, costMaterial, font, IsEnglishUi);
             visual.PrepareFaceUp(new Vector3(0f, 0.92f, -0.24f), CurrentRevealedCardScale, 0f);
             visual.SetFaceDetailsVisible(true);
             SetStoredVisualShadowMode(cardObject);
@@ -4711,9 +4721,11 @@ namespace CardOpen.Prototype
             if (card == null || card.Data == null || card.Data.DeckAbilities == null) return string.Empty;
             List<string> statusLines = new List<string>();
             if (includeEquipment && card.EquippedMagic != null && card.EquippedMagic.Data != null)
-                statusLines.Add("마법: " + card.EquippedMagic.Data.Name);
+                statusLines.Add(Ui("마법: ", "Magic: ")
+                    + card.EquippedMagic.Data.GetLocalizedName(IsEnglishUi));
             if (includeEquipment && card.EquippedWeapon != null && card.EquippedWeapon.Data != null)
-                statusLines.Add("무기: " + card.EquippedWeapon.Data.Name);
+                statusLines.Add(Ui("무기: ", "Weapon: ")
+                    + card.EquippedWeapon.Data.GetLocalizedName(IsEnglishUi));
             int effectiveCopies = GetEffectiveDeckCopyCount(card);
             for (int i = 0; i < card.Data.DeckAbilities.Count; i++)
             {
@@ -4735,12 +4747,12 @@ namespace CardOpen.Prototype
                 {
                     card.RemainingDrawsByAbility.TryGetValue(i, out int remainingDraws);
                     if (remainingDraws > 0)
-                        statusLines.Add(remainingDraws + "\uD68C");
+                        statusLines.Add(remainingDraws + Ui("\uD68C", " uses"));
                 }
                 if (ability.Effect == global::DeckAbilityEffect.AccumulateFlatScorePerDraw)
                 {
                     card.AccumulatedFlatScoreByAbility.TryGetValue(i, out int accumulatedScore);
-                    statusLines.Add(accumulatedScore + "\uC810");
+                    statusLines.Add(accumulatedScore + Ui("\uC810", " pts"));
                 }
                 if (IsStackThresholdEffect(ability.Effect)
                     || ability.Effect == global::DeckAbilityEffect.AddScoreEveryOtherCardScoreEvents)
@@ -4754,7 +4766,7 @@ namespace CardOpen.Prototype
                         && ability.MaxTriggersPerPack > 0)
                     {
                         card.PerPackTriggerCountByAbility.TryGetValue(i, out int usedThisPack);
-                        statusLines.Add(usedThisPack + "\uD68C");
+                        statusLines.Add(usedThisPack + Ui("\uD68C", " uses"));
                     }
                 }
             }
@@ -4769,16 +4781,16 @@ namespace CardOpen.Prototype
             return string.Join("\n", statusLines);
         }
 
-        private static string GetInheritedRelicShortName(StoredCard relic)
+        private string GetInheritedRelicShortName(StoredCard relic)
         {
-            if (relic == null || relic.Data == null) return "조립 유물";
+            if (relic == null || relic.Data == null) return Ui("조립 유물", "Relic");
             switch (relic.Data.name)
             {
-                case "MagicScrew": return "나사";
-                case "MagicWheel": return "바퀴";
-                case "MagicBattery": return "배터리";
-                case "MagicEngine": return "엔진";
-                default: return relic.Data.Name;
+                case "MagicScrew": return Ui("나사", "Screw");
+                case "MagicWheel": return Ui("바퀴", "Wheel");
+                case "MagicBattery": return Ui("배터리", "Battery");
+                case "MagicEngine": return Ui("엔진", "Engine");
+                default: return relic.Data.GetLocalizedName(IsEnglishUi);
             }
         }
         private static void DrawStatusLabelWithShadow(Rect rect, string text, GUIStyle style, Color color)
@@ -5023,7 +5035,7 @@ namespace CardOpen.Prototype
             Matrix4x4 previousMatrix = GUI.matrix;
             GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
                 new Vector3(scale, scale, 1f));
-            GUI.Label(new Rect(guideX, guideY, 420f, 42f), Ui("\uD329 \uC704\uCABD\uC744 \uB4DC\uB798\uADF8\uD574\uC11C \uB73B\uAE30", "Drag pack top to open"), packGuideStyle);
+            GUI.Label(new Rect(guideX, guideY, 420f, 42f), Ui("\uD329 \uC704\uCABD\uC744 \uB4DC\uB798\uADF8\uD574\uC11C \uB72F\uAE30", "Drag pack top to open"), packGuideStyle);
             GUI.matrix = previousMatrix;
         }
         private void DrawControlGuide(float scale, float offsetX, float offsetY)

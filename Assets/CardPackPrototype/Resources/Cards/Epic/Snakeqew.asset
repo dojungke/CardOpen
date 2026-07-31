@@ -14,6 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uC774\uBB34\uAE30"
   Description: "\uC22B\uC790\uAC00 \uD640\uC218\uC778 \uCE74\uB4DC\uB97C \uBF51\uC73C\uBA74 50% \uC810\uC218 \uBCF4\uB108\uC2A4"
+  EnglishName: "Imoogi"
+  EnglishDescription: "When an odd-numbered card is drawn, gain a 50% score bonus."
   Rare: 3
   Image: {fileID: 2800000, guid: 5ae566d9c3e4f5a42b8494c09079641c, type: 3}
   Tags:
