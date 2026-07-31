@@ -1,6 +1,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Text;
 using UnityEngine;
@@ -329,10 +331,61 @@ namespace CardOpen.Prototype
                 Deck = new SharedCardData[deckCards.Count]
             };
             for (int i = 0; i < deckCards.Count; i++) result.Deck[i] = CaptureSharedCard(deckCards[i]);
-            string json = JsonUtility.ToJson(result);
-            string payload = Convert.ToBase64String(Encoding.UTF8.GetBytes(json))
-                .TrimEnd('=').Replace('+', '-').Replace('/', '_');
+            string payload = EncodeSharedResult(JsonUtility.ToJson(result));
             return baseUrl + "?cardopenResult=" + Uri.EscapeDataString(payload);
+        }
+
+        private static string EncodeSharedResult(string json)
+        {
+            byte[] source = Encoding.UTF8.GetBytes(json);
+            using (MemoryStream output = new MemoryStream())
+            {
+                using (GZipStream gzip = new GZipStream(output, System.IO.Compression.CompressionLevel.Optimal, true))
+                    gzip.Write(source, 0, source.Length);
+                return "z." + ToBase64Url(output.ToArray());
+            }
+        }
+
+        private static string DecodeSharedResult(string payload)
+        {
+            string decodedPayload = Uri.UnescapeDataString(payload);
+            bool compressed = decodedPayload.StartsWith("z.", StringComparison.Ordinal);
+            if (compressed) decodedPayload = decodedPayload.Substring(2);
+            byte[] source = FromBase64Url(decodedPayload);
+            if (!compressed) return Encoding.UTF8.GetString(source);
+
+            using (MemoryStream input = new MemoryStream(source))
+            using (GZipStream gzip = new GZipStream(input, CompressionMode.Decompress))
+            using (MemoryStream output = new MemoryStream())
+            {
+                byte[] buffer = new byte[4096];
+                int total = 0;
+                int read;
+                while ((read = gzip.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    total += read;
+                    if (total > 262144) throw new InvalidDataException("Shared result is too large.");
+                    output.Write(buffer, 0, read);
+                }
+                return Encoding.UTF8.GetString(output.ToArray());
+            }
+        }
+
+        private static string ToBase64Url(byte[] value)
+        {
+            return Convert.ToBase64String(value).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        }
+
+        private static byte[] FromBase64Url(string value)
+        {
+            string normalized = value.Replace('-', '+').Replace('_', '/');
+            switch (normalized.Length % 4)
+            {
+                case 2: normalized += "=="; break;
+                case 3: normalized += "="; break;
+                case 1: throw new FormatException("Invalid shared result encoding.");
+            }
+            return Convert.FromBase64String(normalized);
         }
 
         private SharedCardData CaptureSharedCard(StoredCard card)
@@ -387,13 +440,7 @@ namespace CardOpen.Prototype
             if (string.IsNullOrEmpty(payload)) return false;
             try
             {
-                string normalized = Uri.UnescapeDataString(payload).Replace('-', '+').Replace('_', '/');
-                switch (normalized.Length % 4)
-                {
-                    case 2: normalized += "=="; break;
-                    case 3: normalized += "="; break;
-                }
-                string json = Encoding.UTF8.GetString(Convert.FromBase64String(normalized));
+                string json = DecodeSharedResult(payload);
                 SharedResultData result = JsonUtility.FromJson<SharedResultData>(json);
                 if (result == null || result.Version != 1) return false;
                 RestoreSharedResult(result);
