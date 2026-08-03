@@ -217,6 +217,7 @@ namespace CardOpen.Prototype
             {
                 TextMeshPro textMesh = textMeshes[i];
                 if (textMesh == null || !textMesh.gameObject.name.StartsWith("Card Description")) continue;
+                PrepareTmpCharacters(textMesh.font, displayDescription);
                 textMesh.text = displayDescription;
                 textMesh.ForceMeshUpdate();
             }
@@ -467,6 +468,13 @@ namespace CardOpen.Prototype
             return fontAsset;
         }
 
+        private static void PrepareTmpCharacters(TMP_FontAsset fontAsset, string value)
+        {
+            if (fontAsset == null || string.IsNullOrEmpty(value)
+                || fontAsset.atlasPopulationMode != AtlasPopulationMode.Dynamic) return;
+            fontAsset.TryAddCharacters(value, out _);
+        }
+
         private void CreateDescriptionLayer(string value, Vector3 position, Font font, Color color, int sortingOrder, bool addOutline = false)
         {
             if (string.IsNullOrWhiteSpace(value)) return;
@@ -484,6 +492,7 @@ namespace CardOpen.Prototype
             rectTransform.localScale = Vector3.one;
 
             textMesh.font = fontAsset;
+            PrepareTmpCharacters(fontAsset, value);
             textMesh.text = value.Replace("\r", string.Empty);
             textMesh.color = color;
             textMesh.fontStyle = FontStyles.Bold;

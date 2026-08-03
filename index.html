@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="WebBuild/TemplateData/style.css">
   </head>
   <body>
-    <pre id="cardopen-diagnostics" style="display:block;position:fixed;z-index:99999;left:12px;right:12px;top:12px;max-height:45vh;overflow:auto;margin:0;padding:14px;border:2px solid #ff6b6b;border-radius:8px;background:rgba(12,12,18,.94);color:#fff;font:14px/1.45 monospace;white-space:pre-wrap">Loading Unity...</pre>
     <div id="unity-container" class="unity-desktop">
       <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
       <div id="unity-loading-bar">
@@ -25,16 +24,6 @@
       </div>
     </div>
     <script>
-      window.cardOpenGameReady = false;
-      var diagnostics = document.querySelector("#cardopen-diagnostics");
-      function showDiagnostic(message) {
-        diagnostics.style.display = "block";
-        diagnostics.textContent += (diagnostics.textContent ? "\n" : "") + String(message);
-      }
-      window.addEventListener("error", function(event) { showDiagnostic(event.message || event.error); });
-      window.addEventListener("unhandledrejection", function(event) { showDiagnostic(event.reason); });
-      window.addEventListener("cardopen-ready", function() { diagnostics.textContent = "Game initialization complete."; diagnostics.style.borderColor = "#55dd88"; setTimeout(function() { diagnostics.style.display = "none"; }, 2500); });
-
       var canvas = document.querySelector("#unity-canvas");
 
       // Shows a temporary message banner/ribbon for a few seconds, or
@@ -74,8 +63,6 @@
         productName: "CardOpen",
         productVersion: "0.1.0",
         showBanner: unityShowBanner,
-        printErr: function(message) { console.error(message); showDiagnostic("Unity error: " + message); },
-        errorHandler: function(error, url, line) { showDiagnostic("Unity runtime error: " + error); return true; },
         // errorHandler: function(err, url, line) {
         //    alert("error " + err + " occurred at line " + line);
         //    // Return 'true' if you handled this error and don't want Unity
@@ -130,14 +117,12 @@
           document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
               }).then((unityInstance) => {
                 document.querySelector("#unity-loading-bar").style.display = "none";
-                diagnostics.textContent = "Unity engine loaded. Initializing game...";
-                setTimeout(function() { if (!window.cardOpenGameReady) showDiagnostic("Unity loaded, but game initialization did not complete."); }, 8000);
                 document.querySelector("#unity-fullscreen-button").onclick = () => {
                   unityInstance.SetFullscreen(1);
                 };
 
               }).catch((message) => {
-                showDiagnostic("Unity failed to start: " + message);
+                alert(message);
               });
             };
 

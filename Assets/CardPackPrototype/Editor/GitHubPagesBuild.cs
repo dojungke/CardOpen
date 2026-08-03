@@ -46,7 +46,6 @@ namespace CardOpen.Editor
             html = html.Replace("href=\"TemplateData/", "href=\"WebBuild/TemplateData/");
             html = html.Replace("var buildUrl = \"Build\";", "var buildUrl = \"WebBuild/Build\";");
             html = html.Replace("streamingAssetsUrl: \"StreamingAssets\"", "streamingAssetsUrl: \"WebBuild/StreamingAssets\"");
-            html = InjectVisibleErrorHandling(html);
             File.WriteAllText(Path.Combine(projectRoot, "index.html"), html);
         }
 
@@ -68,47 +67,6 @@ namespace CardOpen.Editor
             }
         }
 
-        private static string InjectVisibleErrorHandling(string html)
-        {
-            const string bodyMarker = "  <body>";
-            const string diagnosticElement =
-                "\n    <pre id=\"cardopen-diagnostics\" style=\"display:block;position:fixed;z-index:99999;left:12px;right:12px;top:12px;max-height:45vh;overflow:auto;margin:0;padding:14px;border:2px solid #ff6b6b;border-radius:8px;background:rgba(12,12,18,.94);color:#fff;font:14px/1.45 monospace;white-space:pre-wrap\">Loading Unity...</pre>";
-            if (!html.Contains("cardopen-diagnostics"))
-                html = html.Replace(bodyMarker, bodyMarker + diagnosticElement);
-
-            const string canvasMarker = "      var canvas = document.querySelector(\"#unity-canvas\");";
-            const string diagnosticsScript =
-                "      window.cardOpenGameReady = false;\n" +
-                "      var diagnostics = document.querySelector(\"#cardopen-diagnostics\");\n" +
-                "      function showDiagnostic(message) {\n" +
-                "        diagnostics.style.display = \"block\";\n" +
-                "        diagnostics.textContent += (diagnostics.textContent ? \"\\n\" : \"\") + String(message);\n" +
-                "      }\n" +
-                "      window.addEventListener(\"error\", function(event) { showDiagnostic(event.message || event.error); });\n" +
-                "      window.addEventListener(\"unhandledrejection\", function(event) { showDiagnostic(event.reason); });\n" +
-                "      window.addEventListener(\"cardopen-ready\", function() { diagnostics.textContent = \"Game initialization complete.\"; diagnostics.style.borderColor = \"#55dd88\"; setTimeout(function() { diagnostics.style.display = \"none\"; }, 2500); });\n\n";
-            if (!html.Contains("function showDiagnostic"))
-                html = html.Replace(canvasMarker, diagnosticsScript + canvasMarker);
-
-            const string configMarker = "        showBanner: unityShowBanner,";
-            const string configDiagnostics =
-                "\n        printErr: function(message) { console.error(message); showDiagnostic(\"Unity error: \" + message); }," +
-                "\n        errorHandler: function(error, url, line) { showDiagnostic(\"Unity runtime error: \" + error); return true; },";
-            if (!html.Contains("printErr: function(message)"))
-                html = html.Replace(configMarker, configMarker + configDiagnostics);
-
-            const string loadedMarker = "                document.querySelector(\"#unity-loading-bar\").style.display = \"none\";";
-            const string readyTimeout =
-                "\n                diagnostics.textContent = \"Unity engine loaded. Initializing game...\";" +
-                "\n                setTimeout(function() { if (!window.cardOpenGameReady) showDiagnostic(\"Unity loaded, but game initialization did not complete.\"); }, 8000);";
-            if (!html.Contains("game initialization did not complete"))
-                html = html.Replace(loadedMarker, loadedMarker + readyTimeout);
-
-            html = html.Replace(
-                "                alert(message);",
-                "                showDiagnostic(\"Unity failed to start: \" + message);");
-            return html;
-        }
     }
 }
 #endif

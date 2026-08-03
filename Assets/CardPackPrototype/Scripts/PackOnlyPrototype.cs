@@ -20,6 +20,7 @@ namespace CardOpen.Prototype
             public int Lane;
             public int Score;
             public float PlaybackSpeed = 1f;
+            public float AudioVolumeScale = 1f;
             public bool AddedToPendingScore;
             public bool SoundPlayed;
         }
@@ -2498,13 +2499,17 @@ namespace CardOpen.Prototype
         private void AddScorePopup(string text, Color color, float startTime, int lane, int score)
         {
             const float baseSameLaneSpacing = 1.36f;
+            int burstCount = scorePopups.Count + 1;
+            float burstSpeed = GetScorePopupBurstPlaybackSpeed(burstCount);
+            float audioVolumeScale = GetScorePopupBurstAudioScale(burstCount);
             int normalizedLane = ((lane % ScorePopupTrailCapacity) + ScorePopupTrailCapacity)
                 % ScorePopupTrailCapacity;
             float scheduledStartTime = startTime;
             for (int i = 0; i < scorePopups.Count; i++)
             {
                 ScorePopup existing = scorePopups[i];
-                existing.PlaybackSpeed = Mathf.Max(existing.PlaybackSpeed, 2f);
+                existing.PlaybackSpeed = Mathf.Max(existing.PlaybackSpeed, burstSpeed);
+                existing.AudioVolumeScale = Mathf.Min(existing.AudioVolumeScale, audioVolumeScale);
                 if (existing.Lane != normalizedLane) continue;
                 float laneSpacing = baseSameLaneSpacing / existing.PlaybackSpeed;
                 scheduledStartTime = Mathf.Max(scheduledStartTime, existing.StartTime + laneSpacing);
@@ -2516,11 +2521,30 @@ namespace CardOpen.Prototype
                 Color = color,
                 StartTime = scheduledStartTime,
                 Lane = normalizedLane,
-                Score = Mathf.Max(0, score)
+                Score = Mathf.Max(0, score),
+                PlaybackSpeed = burstSpeed,
+                AudioVolumeScale = audioVolumeScale
             });
             pendingScoreCommitTime = Mathf.Max(pendingScoreCommitTime, scheduledStartTime + 0.2f);
         }
 
+        private static float GetScorePopupBurstPlaybackSpeed(int popupCount)
+        {
+            if (popupCount >= 30) return 12f;
+            if (popupCount >= 20) return 8f;
+            if (popupCount >= 10) return 5f;
+            if (popupCount >= 6) return 2.5f;
+            return 1f;
+        }
+
+        private static float GetScorePopupBurstAudioScale(int popupCount)
+        {
+            if (popupCount >= 30) return 0.12f;
+            if (popupCount >= 20) return 0.18f;
+            if (popupCount >= 10) return 0.30f;
+            if (popupCount >= 6) return 0.55f;
+            return 1f;
+        }
         private void CommitPendingScoreImmediately()
         {
             float now = Time.unscaledTime;
@@ -2665,24 +2689,22 @@ namespace CardOpen.Prototype
             scorePopupAudioSource.playOnAwake = false;
             scorePopupAudioSource.loop = false;
             scorePopupAudioSource.spatialBlend = 0f;
-            scorePopupAudioSource.volume = 0.44f;
+            scorePopupAudioSource.volume = 0.28f;
 
             const int sampleRate = 44100;
-            const float duration = 0.52f;
+            const float duration = 0.38f;
             int sampleCount = Mathf.CeilToInt(sampleRate * duration);
             float[] samples = new float[sampleCount];
             for (int i = 0; i < sampleCount; i++)
             {
                 float time = i / (float)sampleRate;
-                float attack = Mathf.Clamp01(time / 0.006f);
-                float envelope = attack * Mathf.Exp(-time * 6.2f);
-                float fundamental = Mathf.Sin(2f * Mathf.PI * 987.77f * time);
-                float fifth = Mathf.Sin(2f * Mathf.PI * 1480f * time);
-                float octave = Mathf.Sin(2f * Mathf.PI * 1975.53f * time);
-                float shimmer = Mathf.Sin(2f * Mathf.PI * 2960f * time)
-                    * attack * Mathf.Exp(-time * 15f);
-                samples[i] = ((fundamental * 0.58f + fifth * 0.22f + octave * 0.13f) * envelope
-                    + shimmer * 0.025f) * 0.31f;
+                float attack = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(time / 0.028f));
+                float envelope = attack * Mathf.Exp(-time * 7.4f);
+                float fundamental = Mathf.Sin(2f * Mathf.PI * 440f * time);
+                float warmThird = Mathf.Sin(2f * Mathf.PI * 554.37f * time);
+                float softFifth = Mathf.Sin(2f * Mathf.PI * 659.25f * time);
+                samples[i] = (fundamental * 0.72f + warmThird * 0.18f + softFifth * 0.07f)
+                    * envelope * 0.22f;
             }
 
             scorePopupAudioClip = AudioClip.Create(
@@ -2690,11 +2712,10 @@ namespace CardOpen.Prototype
             scorePopupAudioClip.SetData(samples, 0);
         }
 
-        private void PlayScorePopupSound()
+        private void PlayScorePopupSound(float volumeScale)
         {
             if (scorePopupAudioSource == null || scorePopupAudioClip == null) return;
-            scorePopupAudioSource.Stop();
-            scorePopupAudioSource.PlayOneShot(scorePopupAudioClip);
+            scorePopupAudioSource.PlayOneShot(scorePopupAudioClip, Mathf.Clamp01(volumeScale));
         }
 
         private void SetupAbilityEffectAudio()
@@ -2773,7 +2794,7 @@ namespace CardOpen.Prototype
                 if (!popup.SoundPlayed)
                 {
                     popup.SoundPlayed = true;
-                    PlayScorePopupSound();
+                    PlayScorePopupSound(popup.AudioVolumeScale);
                 }
                 if (popup.AddedToPendingScore) continue;
                 popup.AddedToPendingScore = true;
