@@ -27,7 +27,7 @@ MonoBehaviour:
   FitBackgroundImageToWidth: 1
   Tags: 02000000
   CanEquipMagic: 0
-  CanEquipWeapon: 1
+  CanEquipWeapon: 0
   MaxMergeCount: 1
   UnlimitedMergeCount: 0
   DeckAbilities:

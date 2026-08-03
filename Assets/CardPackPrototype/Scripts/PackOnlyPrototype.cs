@@ -209,6 +209,10 @@ namespace CardOpen.Prototype
         private GUIStyle runEndTitleStyle;
         private GUIStyle runEndBodyStyle;
         private GUIStyle runEndButtonStyle;
+        private GUIStyle runEndBadgeStyle;
+        private GUIStyle runEndStatLabelStyle;
+        private GUIStyle runEndStatValueStyle;
+        private GUIStyle runEndHintStyle;
         private GUIStyle packChoiceTitleStyle;
         private GUIStyle packContentsTitleStyle;
         private GUIStyle packContentsCardStyle;
@@ -3199,9 +3203,9 @@ namespace CardOpen.Prototype
                     return ability.ApplicableNumbers != null
                         && ability.ApplicableNumbers.Contains(revealedCard.Number);
                 case global::DeckAbilityTrigger.DifferentColor:
-                    return !ColorsMatch(owner.Color, revealedCard.Color);
+                    return !CardColorsMatch(owner, revealedCard);
                 case global::DeckAbilityTrigger.MatchingColorAndNumber:
-                    return ColorsMatch(owner.Color, revealedCard.Color)
+                    return CardColorsMatch(owner, revealedCard)
                         && owner.Number == revealedCard.Number;
                 case global::DeckAbilityTrigger.MatchingNumber:
                     return owner.Number == revealedCard.Number;
@@ -3209,7 +3213,7 @@ namespace CardOpen.Prototype
                     return true;
                 case global::DeckAbilityTrigger.PreviousCardDifferentColor:
                     return previousRevealedCard != null
-                        && !ColorsMatch(previousRevealedCard.Color, revealedCard.Color);
+                        && !CardColorsMatch(previousRevealedCard, revealedCard);
 
                 case global::DeckAbilityTrigger.TriggeredEffectsAtLeastThree:
                     return triggeredEffectCount >= 3;
@@ -3228,10 +3232,20 @@ namespace CardOpen.Prototype
                 && (left == global::CardColor.White || right == global::CardColor.White);
         }
 
+        private bool CardColorsMatch(StoredCard left, StoredCard right)
+        {
+            if (IsAllColorCard(left) || IsAllColorCard(right)) return true;
+            return left != null && right != null && ColorsMatch(left.Color, right.Color);
+        }
+
+        private static bool IsAllColorCard(StoredCard card)
+        {
+            return card != null && card.Rarity == global::CardRarity.Legendary;
+        }
         private bool RevealedCardHasColor(StoredCard card, global::CardColor color)
         {
             if (card == null) return false;
-            return card.Color == color
+            return IsAllColorCard(card) || card.Color == color
                 || (card.Color == global::CardColor.White && HasWhiteCardsCountAsAllColors());
         }
 
@@ -3251,7 +3265,7 @@ namespace CardOpen.Prototype
                 global::AbilityColor color = colors[i];
                 if (color == global::AbilityColor.Self)
                 {
-                    if (owner != null && ColorsMatch(owner.Color, card.Color)) matchCount++;
+                    if (owner != null && CardColorsMatch(owner, card)) matchCount++;
                     continue;
                 }
 
@@ -4746,41 +4760,80 @@ namespace CardOpen.Prototype
                 runEndButtonStyle.hover.background = roundedDiscardTexture;
                 runEndButtonStyle.active.background = roundedDiscardTexture;
                 runEndButtonStyle.focused.background = roundedDiscardTexture;
+
+                runEndBadgeStyle = new GUIStyle(runEndBodyStyle)
+                {
+                    fontSize = 18,
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.MiddleCenter
+                };
+                runEndStatLabelStyle = new GUIStyle(runEndBodyStyle)
+                {
+                    fontSize = 17,
+                    alignment = TextAnchor.MiddleCenter
+                };
+                runEndStatValueStyle = new GUIStyle(runEndBodyStyle)
+                {
+                    fontSize = 29,
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.UpperCenter
+                };
+                runEndHintStyle = new GUIStyle(runEndBodyStyle)
+                {
+                    fontSize = 17,
+                    alignment = TextAnchor.MiddleCenter
+                };
             }
 
             Matrix4x4 previousMatrix = GUI.matrix;
             GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
                 new Vector3(scale, scale, 1f));
-            GUI.Box(UiRect(new Rect(270f, 145f, 740f, 410f), new Rect(50f, 330f, 620f, 610f)), GUIContent.none, discardPanelStyle);
+            GUI.Box(UiRect(new Rect(270f, 115f, 740f, 485f), new Rect(50f, 270f, 620f, 650f)), GUIContent.none, discardPanelStyle);
 
             bool cleared = phase == RevealPhase.RunCleared;
             int goalIndex = Mathf.Clamp(currentGoalIndex, 0, GoalScores.Length - 1);
             int targetScore = GoalScores[goalIndex];
+            int reachedStage = cleared ? GoalScores.Length : Mathf.Clamp(currentGoalIndex + 1, 1, GoalScores.Length);
             string title = cleared ? Ui("\uB7F0 \uD074\uB9AC\uC5B4!", "RUN CLEARED!") : Ui("\uAC8C\uC784 \uC624\uBC84", "GAME OVER");
-            string body = cleared
-                ? Ui("6\uB2E8\uACC4 \uBAA9\uD45C\uB97C \uBAA8\uB450 \uB2EC\uC131\uD588\uC2B5\uB2C8\uB2E4.\n\uCD5C\uC885 \uC810\uC218  ",
-                    "All 6 goals cleared.\nFinal score  ") + totalScore.ToString("N0")
-                : Ui("\uBAA9\uD45C \uC810\uC218\uC5D0 \uB3C4\uB2EC\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.\n\uB77C\uC6B4\uB4DC \uC810\uC218  ",
-                    "Goal score not reached.\nRound score  ")
-                    + roundScore.ToString("N0") + " / " + targetScore.ToString("N0")
-                    + Ui("\n\uCD1D\uC810  ", "\nTotal  ") + totalScore.ToString("N0");
-            GUI.Label(UiRect(new Rect(320f, 185f, 640f, 90f), new Rect(90f, 385f, 540f, 100f)), title, runEndTitleStyle);
-            GUI.Label(UiRect(new Rect(340f, 285f, 600f, 110f), new Rect(90f, 505f, 540f, 180f)), body, runEndBodyStyle);
-            if (!sharedResultMode && GUI.Button(UiRect(new Rect(360f, 430f, 260f, 70f), new Rect(90f, 720f, 250f, 76f)), Ui("\uACF5\uC720", "Share"), runEndButtonStyle))
+            string resultMessage = cleared
+                ? Ui("\uBAA8\uB4E0 \uBAA9\uD45C\uB97C \uB2EC\uC131\uD588\uC2B5\uB2C8\uB2E4.", "All goals cleared.")
+                : Ui("\uBAA9\uD45C \uC810\uC218\uC5D0 \uB3C4\uB2EC\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.", "Goal score not reached.");
+            string roundValue = cleared
+                ? Ui("\uC644\uB8CC", "CLEAR")
+                : roundScore.ToString("N0") + " / " + targetScore.ToString("N0");
+
+            if (sharedResultMode)
+                GUI.Label(UiRect(new Rect(450f, 128f, 380f, 32f), new Rect(190f, 292f, 340f, 36f)),
+                    Ui("\uACF5\uC720\uBC1B\uC740 \uACB0\uACFC", "SHARED RESULT"), runEndBadgeStyle);
+            GUI.Label(UiRect(new Rect(320f, 158f, 640f, 70f), new Rect(90f, 330f, 540f, 82f)), title, runEndTitleStyle);
+            GUI.Label(UiRect(new Rect(340f, 224f, 600f, 42f), new Rect(90f, 410f, 540f, 48f)), resultMessage, runEndBodyStyle);
+
+            GUI.Label(UiRect(new Rect(320f, 282f, 200f, 30f), new Rect(80f, 485f, 180f, 32f)), Ui("\uCD1D\uC810", "TOTAL SCORE"), runEndStatLabelStyle);
+            GUI.Label(UiRect(new Rect(540f, 282f, 200f, 30f), new Rect(270f, 485f, 180f, 32f)), Ui("\uB3C4\uB2EC \uB2E8\uACC4", "STAGE"), runEndStatLabelStyle);
+            GUI.Label(UiRect(new Rect(760f, 282f, 200f, 30f), new Rect(460f, 485f, 180f, 32f)), Ui("\uAC1C\uBD09 \uD329", "PACKS"), runEndStatLabelStyle);
+            GUI.Label(UiRect(new Rect(320f, 312f, 200f, 48f), new Rect(80f, 520f, 180f, 48f)), totalScore.ToString("N0"), runEndStatValueStyle);
+            GUI.Label(UiRect(new Rect(540f, 312f, 200f, 48f), new Rect(270f, 520f, 180f, 48f)), reachedStage + " / " + GoalScores.Length, runEndStatValueStyle);
+            GUI.Label(UiRect(new Rect(760f, 312f, 200f, 48f), new Rect(460f, 520f, 180f, 48f)), completedPacks.ToString("N0"), runEndStatValueStyle);
+
+            GUI.Label(UiRect(new Rect(335f, 370f, 610f, 42f), new Rect(80f, 585f, 560f, 62f)),
+                Ui("\uB77C\uC6B4\uB4DC \uC810\uC218  ", "ROUND SCORE  ") + roundValue, runEndBodyStyle);
+            GUI.Label(UiRect(new Rect(335f, 410f, 610f, 32f), new Rect(80f, 650f, 560f, 54f)),
+                Ui("\uC544\uB798 \uB371 \uCE74\uB4DC\uB97C \uB20C\uB7EC \uC0C1\uC138\uD788 \uBCFC \uC218 \uC788\uC5B4\uC694.", "Select a deck card below to inspect it."), runEndHintStyle);
+
+            if (!sharedResultMode && GUI.Button(UiRect(new Rect(360f, 470f, 260f, 70f), new Rect(90f, 755f, 250f, 76f)), Ui("\uACF5\uC720", "Share"), runEndButtonStyle))
                 ShareCurrentResult();
             string playButtonText = sharedResultMode
                 ? Ui("\uB3C4\uC804\uD558\uAE30", "Challenge")
                 : Ui("\uB2E4\uC2DC \uC2DC\uC791", "Restart");
             Rect playButtonRect = IsPortraitUi
-                ? new Rect(sharedResultMode ? 230f : 380f, 720f, 250f, 76f)
-                : new Rect(sharedResultMode ? 510f : 660f, 430f, 260f, 70f);
+                ? new Rect(sharedResultMode ? 235f : 380f, 755f, 250f, 76f)
+                : new Rect(sharedResultMode ? 510f : 660f, 470f, 260f, 70f);
             if (GUI.Button(playButtonRect, playButtonText, runEndButtonStyle))
                 StartNewRun();
             if (!sharedResultMode && !string.IsNullOrEmpty(shareFeedback) && Time.unscaledTime < shareFeedbackUntil)
-                GUI.Label(new Rect(340f, 508f, 600f, 38f), shareFeedback, runEndBodyStyle);
+                GUI.Label(UiRect(new Rect(340f, 548f, 600f, 38f), new Rect(85f, 842f, 550f, 42f)), shareFeedback, runEndHintStyle);
             GUI.matrix = previousMatrix;
         }
-
         private void DrawDeckInspectionControls(float scale, float offsetX, float offsetY)
         {
             EnsureDiscardStyles();
