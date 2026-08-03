@@ -231,12 +231,15 @@ namespace CardOpen.Prototype
         private Texture2D roundedDiscardTexture;
         private bool discardConfirmationVisible;
         private bool settingsOpen;
+        private bool abandonConfirmationVisible;
         private int uiLanguage;
         private float masterVolume = 1f;
         private bool controlGuideOpen = true;
         private GUIStyle settingsTitleStyle;
         private GUIStyle settingsLabelStyle;
         private bool sharedResultMode;
+        private bool sharedPackPreviewActive;
+        private string sharedResultSnapshotJson;
         private string shareFeedback;
         private float shareFeedbackUntil;
 
@@ -451,6 +454,7 @@ namespace CardOpen.Prototype
                 string json = DecodeSharedResult(payload);
                 SharedResultData result = JsonUtility.FromJson<SharedResultData>(json);
                 if (result == null || result.Version != 1) return false;
+                sharedResultSnapshotJson = json;
                 RestoreSharedResult(result);
                 return true;
             }
@@ -693,6 +697,11 @@ namespace CardOpen.Prototype
         private void CompletePackAndBeginNextSequence()
         {
             CommitPendingScoreImmediately();
+            if (sharedPackPreviewActive)
+            {
+                ReturnToSharedResultAfterPackPreview();
+                return;
+            }
             AdvanceDeckTransformationsAfterPack();
             completedPacks++;
             if (completedPacks % PacksPerGoal == 0)
@@ -718,6 +727,8 @@ namespace CardOpen.Prototype
 
         private void StartNewRun()
         {
+            sharedPackPreviewActive = false;
+            sharedResultSnapshotJson = null;
             sharedResultMode = false;
             shareFeedback = null;
             CloseDeckInspection();
@@ -748,6 +759,42 @@ namespace CardOpen.Prototype
             activePackData = Resources.Load<global::CardPackData>("CardPacks/TaleTail");
             if (activePackData == null) activePackData = LoadCardPackData();
             BeginSequence(false);
+        }
+
+        private void BeginSharedPackPreview()
+        {
+            if (!sharedResultMode || string.IsNullOrEmpty(sharedResultSnapshotJson)) return;
+            CloseDeckInspection();
+            ClearPackChoiceVisuals();
+            sharedPackPreviewActive = true;
+            sharedResultMode = false;
+            shareFeedback = null;
+            previousRevealedCard = null;
+            pendingPackOpenNatureSources.Clear();
+            ClearNatureAbilityChain();
+            BeginPackChoice();
+        }
+
+        private void ReturnToSharedResultAfterPackPreview()
+        {
+            string snapshotJson = sharedResultSnapshotJson;
+            sharedPackPreviewActive = false;
+            previousRevealedCard = null;
+            pendingPackOpenNatureSources.Clear();
+            ClearNatureAbilityChain();
+            if (string.IsNullOrEmpty(snapshotJson))
+            {
+                StartNewRun();
+                return;
+            }
+
+            SharedResultData snapshot = JsonUtility.FromJson<SharedResultData>(snapshotJson);
+            if (snapshot == null || snapshot.Version != 1)
+            {
+                StartNewRun();
+                return;
+            }
+            RestoreSharedResult(snapshot);
         }
 
         private void AdvanceDeckTransformationsAfterPack()
@@ -3556,12 +3603,13 @@ namespace CardOpen.Prototype
             GetUiLayout(out float uiScale, out float offsetX, out float offsetY);
             float screenHeightScale = Screen.height > 0 ? Screen.height / ReferenceHeight : 1f;
             float deckScale = screenHeightScale > 0f ? uiScale / screenHeightScale : 1f;
-            float deckLayoutY = IsPortraitUi ? 1165f + PortraitExtraHeight : 622.8f;
+            bool resultScreen = phase == RevealPhase.GameOver || phase == RevealPhase.RunCleared;
+            float deckLayoutY = IsPortraitUi ? 1165f + PortraitExtraHeight : (resultScreen ? 635f : 622.8f);
             float inspectionLayoutY = IsPortraitUi ? 610f + PortraitExtraHeight * 0.5f : 352.8f;
             float deckGuiY = offsetY + deckLayoutY * uiScale;
             float inspectionGuiY = offsetY + inspectionLayoutY * uiScale;
-            float deckCardScale = IsPortraitUi ? 0.62f : 0.43f;
-            float deckStartX = IsPortraitUi ? 150f : 53.76f;
+            float deckCardScale = IsPortraitUi ? 0.66f : 0.43f;
+            float deckStartX = IsPortraitUi ? 140f : (resultScreen ? 470f : 53.76f);
             bool isInspecting = inspectedDeckIndex >= 0 && inspectedDeckIndex < deckVisuals.Count;
 
             int liftedDeckSlot = deckCardDragActive && pressedDeckIndex >= 0 && pressedDeckIndex < deckCards.Count
@@ -3575,7 +3623,7 @@ namespace CardOpen.Prototype
                 bool showPlaceholder = (GetDeckIndexAtSlot(i) < 0 || i == liftedDeckSlot) && !isInspecting;
                 placeholder.SetActive(showPlaceholder);
                 if (!showPlaceholder) continue;
-                float deckSpacing = IsPortraitUi ? 105f : 74.24f;
+                float deckSpacing = IsPortraitUi ? 110f : (resultScreen ? 85f : 74.24f);
                 float deckGuiX = offsetX + (deckStartX + i * deckSpacing) * uiScale;
                 placeholder.transform.position =
                     camera.ScreenToWorldPoint(new Vector3(deckGuiX, Screen.height - deckGuiY, depth));
@@ -3602,7 +3650,7 @@ namespace CardOpen.Prototype
                 else
                 {
                     int slot = i < deckCards.Count && deckCards[i] != null ? deckCards[i].DeckSlot : i;
-                    float deckSpacing = IsPortraitUi ? 105f : 74.24f;
+                    float deckSpacing = IsPortraitUi ? 110f : (resultScreen ? 85f : 74.24f);
                     float deckGuiX = offsetX + (deckStartX + Mathf.Clamp(slot, 0, 4) * deckSpacing) * uiScale;
                     visual.transform.position = camera.ScreenToWorldPoint(
                         new Vector3(deckGuiX, Screen.height - deckGuiY, depth));
@@ -3614,7 +3662,6 @@ namespace CardOpen.Prototype
 
             LayoutDeckInspectionBackdrop(camera, depth);
         }
-
         private void CreateDeckInspectionBackdrop()
         {
             deckInspectionBackdrop = CreateQuadObject("Deck Inspection Backdrop");
@@ -4271,7 +4318,11 @@ namespace CardOpen.Prototype
             bool clicked = GUI.Button(settingsButtonRect, Ui("\uC124\uC815", "Settings"), discardButtonStyle);
             bool consumed = clicked || Event.current.type == EventType.Used;
             GUI.matrix = previousMatrix;
-            if (clicked) settingsOpen = true;
+            if (clicked)
+            {
+                abandonConfirmationVisible = false;
+                settingsOpen = true;
+            }
             return consumed;
         }
 
@@ -4303,8 +4354,39 @@ namespace CardOpen.Prototype
             GUI.color = previousColor;
             GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
                 new Vector3(scale, scale, 1f));
-            GUI.Box(UiRect(new Rect(390f, 145f, 500f, 430f), new Rect(60f, 300f, 600f, 620f)), GUIContent.none, discardPanelStyle);
-            GUI.Label(UiRect(new Rect(440f, 170f, 400f, 58f), new Rect(110f, 335f, 500f, 70f)), Ui("\uC124\uC815", "Settings"), settingsTitleStyle);
+
+            if (abandonConfirmationVisible)
+            {
+                GUI.Box(UiRect(new Rect(390f, 220f, 500f, 280f), new Rect(70f, 430f, 580f, 360f)),
+                    GUIContent.none, discardPanelStyle);
+                GUI.Label(UiRect(new Rect(430f, 245f, 420f, 100f), new Rect(110f, 475f, 500f, 120f)),
+                    Ui("\uB3C4\uC804\uC744 \uD3EC\uAE30\uD560\uAE4C\uC694?\n\uD604\uC7AC \uACB0\uACFC \uD654\uBA74\uC73C\uB85C \uC774\uB3D9\uD569\uB2C8\uB2E4.",
+                        "Abandon this run?\nYou will move to the current result."),
+                    discardMessageStyle);
+                if (GUI.Button(UiRect(new Rect(445f, 390f, 170f, 58f), new Rect(120f, 650f, 210f, 68f)),
+                    Ui("\uD3EC\uAE30", "Abandon"), discardButtonStyle))
+                {
+                    GUI.matrix = previousMatrix;
+                    AbandonChallengeToResults();
+                    return;
+                }
+                if (GUI.Button(UiRect(new Rect(665f, 390f, 170f, 58f), new Rect(390f, 650f, 210f, 68f)),
+                    Ui("\uCDE8\uC18C", "Cancel"), discardButtonStyle))
+                    abandonConfirmationVisible = false;
+                GUI.color = previousColor;
+                GUI.matrix = previousMatrix;
+                return;
+            }
+
+            bool canAbandonChallenge = phase != RevealPhase.GameOver && phase != RevealPhase.RunCleared;
+            Rect settingsPanelRect = canAbandonChallenge
+                ? UiRect(new Rect(390f, 115f, 500f, 535f), new Rect(60f, 250f, 600f, 750f))
+                : UiRect(new Rect(390f, 145f, 500f, 430f), new Rect(60f, 300f, 600f, 620f));
+            GUI.Box(settingsPanelRect, GUIContent.none, discardPanelStyle);
+            GUI.Label(canAbandonChallenge
+                    ? UiRect(new Rect(440f, 140f, 400f, 58f), new Rect(110f, 285f, 500f, 70f))
+                    : UiRect(new Rect(440f, 170f, 400f, 58f), new Rect(110f, 335f, 500f, 70f)),
+                Ui("\uC124\uC815", "Settings"), settingsTitleStyle);
 
             GUI.Label(UiRect(new Rect(455f, 250f, 180f, 44f), new Rect(105f, 445f, 220f, 50f)), Ui("\uC5B8\uC5B4", "Language"), settingsLabelStyle);
             if (GUI.Button(UiRect(new Rect(455f, 300f, 170f, 52f), new Rect(105f, 510f, 230f, 62f)),
@@ -4319,10 +4401,50 @@ namespace CardOpen.Prototype
             float changedVolume = GUI.HorizontalSlider(UiRect(new Rect(455f, 438f, 370f, 28f), new Rect(105f, 710f, 510f, 34f)), masterVolume, 0f, 1f);
             if (!Mathf.Approximately(changedVolume, masterVolume)) SetMasterVolume(changedVolume);
 
-            if (GUI.Button(UiRect(new Rect(555f, 500f, 170f, 52f), new Rect(245f, 810f, 230f, 64f)), Ui("\uB2EB\uAE30", "Close"), discardButtonStyle))
+            if (canAbandonChallenge
+                && GUI.Button(UiRect(new Rect(530f, 500f, 220f, 58f), new Rect(220f, 810f, 280f, 68f)),
+                    Ui("\uB3C4\uC804 \uD3EC\uAE30", "Abandon Run"), discardButtonStyle))
+                abandonConfirmationVisible = true;
+
+            Rect closeRect = canAbandonChallenge
+                ? UiRect(new Rect(555f, 575f, 170f, 52f), new Rect(245f, 900f, 230f, 64f))
+                : UiRect(new Rect(555f, 500f, 170f, 52f), new Rect(245f, 810f, 230f, 64f));
+            if (GUI.Button(closeRect, Ui("\uB2EB\uAE30", "Close"), discardButtonStyle))
+            {
+                abandonConfirmationVisible = false;
                 settingsOpen = false;
+            }
             GUI.color = previousColor;
             GUI.matrix = previousMatrix;
+        }
+        private void AbandonChallengeToResults()
+        {
+            CommitPendingScoreImmediately();
+            StopAllCoroutines();
+            settingsOpen = false;
+            abandonConfirmationVisible = false;
+            if (sharedPackPreviewActive)
+            {
+                ReturnToSharedResultAfterPackPreview();
+                return;
+            }
+            sharedResultMode = false;
+            shareFeedback = null;
+            scorePopups.Clear();
+            packTearInProgress = false;
+            gestureDragging = false;
+            inspectionDragging = false;
+            transitionDragActive = false;
+            transitionSwipeCommitted = false;
+            queuedCardSwipes = 0;
+            cardTransitionActive = false;
+            activeSlidingCard = null;
+            ClearPackChoiceVisuals();
+            ClearCards();
+            if (pack != null) pack.gameObject.SetActive(false);
+            if (cardStack != null) cardStack.gameObject.SetActive(false);
+            phase = RevealPhase.GameOver;
+            LayoutDeckVisuals();
         }
         private void DrawScore(float scale, float offsetX, float offsetY)
         {
@@ -4741,7 +4863,7 @@ namespace CardOpen.Prototype
                 runEndBodyStyle = new GUIStyle(runEndTitleStyle)
                 {
                     fontSize = 25,
-                    fontStyle = FontStyle.Normal,
+                    fontStyle = FontStyle.Bold,
                     wordWrap = true
                 };
                 runEndButtonStyle = new GUIStyle(GUI.skin.button)
@@ -4764,7 +4886,6 @@ namespace CardOpen.Prototype
                 runEndBadgeStyle = new GUIStyle(runEndBodyStyle)
                 {
                     fontSize = 18,
-                    fontStyle = FontStyle.Bold,
                     alignment = TextAnchor.MiddleCenter
                 };
                 runEndStatLabelStyle = new GUIStyle(runEndBodyStyle)
@@ -4775,7 +4896,6 @@ namespace CardOpen.Prototype
                 runEndStatValueStyle = new GUIStyle(runEndBodyStyle)
                 {
                     fontSize = 29,
-                    fontStyle = FontStyle.Bold,
                     alignment = TextAnchor.UpperCenter
                 };
                 runEndHintStyle = new GUIStyle(runEndBodyStyle)
@@ -4788,7 +4908,7 @@ namespace CardOpen.Prototype
             Matrix4x4 previousMatrix = GUI.matrix;
             GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
                 new Vector3(scale, scale, 1f));
-            GUI.Box(UiRect(new Rect(270f, 115f, 740f, 485f), new Rect(50f, 270f, 620f, 650f)), GUIContent.none, discardPanelStyle);
+            GUI.Box(UiRect(new Rect(270f, 45f, 740f, 485f), new Rect(50f, 270f, 620f, 650f)), GUIContent.none, discardPanelStyle);
 
             bool cleared = phase == RevealPhase.RunCleared;
             int goalIndex = Mathf.Clamp(currentGoalIndex, 0, GoalScores.Length - 1);
@@ -4803,35 +4923,45 @@ namespace CardOpen.Prototype
                 : roundScore.ToString("N0") + " / " + targetScore.ToString("N0");
 
             if (sharedResultMode)
-                GUI.Label(UiRect(new Rect(450f, 128f, 380f, 32f), new Rect(190f, 292f, 340f, 36f)),
+                GUI.Label(UiRect(new Rect(450f, 58f, 380f, 32f), new Rect(190f, 292f, 340f, 36f)),
                     Ui("\uACF5\uC720\uBC1B\uC740 \uACB0\uACFC", "SHARED RESULT"), runEndBadgeStyle);
-            GUI.Label(UiRect(new Rect(320f, 158f, 640f, 70f), new Rect(90f, 330f, 540f, 82f)), title, runEndTitleStyle);
-            GUI.Label(UiRect(new Rect(340f, 224f, 600f, 42f), new Rect(90f, 410f, 540f, 48f)), resultMessage, runEndBodyStyle);
+            GUI.Label(UiRect(new Rect(320f, 88f, 640f, 70f), new Rect(90f, 330f, 540f, 82f)), title, runEndTitleStyle);
+            GUI.Label(UiRect(new Rect(340f, 154f, 600f, 42f), new Rect(90f, 410f, 540f, 48f)), resultMessage, runEndBodyStyle);
 
-            GUI.Label(UiRect(new Rect(320f, 282f, 200f, 30f), new Rect(80f, 485f, 180f, 32f)), Ui("\uCD1D\uC810", "TOTAL SCORE"), runEndStatLabelStyle);
-            GUI.Label(UiRect(new Rect(540f, 282f, 200f, 30f), new Rect(270f, 485f, 180f, 32f)), Ui("\uB3C4\uB2EC \uB2E8\uACC4", "STAGE"), runEndStatLabelStyle);
-            GUI.Label(UiRect(new Rect(760f, 282f, 200f, 30f), new Rect(460f, 485f, 180f, 32f)), Ui("\uAC1C\uBD09 \uD329", "PACKS"), runEndStatLabelStyle);
-            GUI.Label(UiRect(new Rect(320f, 312f, 200f, 48f), new Rect(80f, 520f, 180f, 48f)), totalScore.ToString("N0"), runEndStatValueStyle);
-            GUI.Label(UiRect(new Rect(540f, 312f, 200f, 48f), new Rect(270f, 520f, 180f, 48f)), reachedStage + " / " + GoalScores.Length, runEndStatValueStyle);
-            GUI.Label(UiRect(new Rect(760f, 312f, 200f, 48f), new Rect(460f, 520f, 180f, 48f)), completedPacks.ToString("N0"), runEndStatValueStyle);
+            GUI.Label(UiRect(new Rect(320f, 212f, 200f, 30f), new Rect(80f, 485f, 180f, 32f)), Ui("\uCD1D\uC810", "TOTAL SCORE"), runEndStatLabelStyle);
+            GUI.Label(UiRect(new Rect(540f, 212f, 200f, 30f), new Rect(270f, 485f, 180f, 32f)), Ui("\uB3C4\uB2EC \uB2E8\uACC4", "STAGE"), runEndStatLabelStyle);
+            GUI.Label(UiRect(new Rect(760f, 212f, 200f, 30f), new Rect(460f, 485f, 180f, 32f)), Ui("\uAC1C\uBD09 \uD329", "PACKS"), runEndStatLabelStyle);
+            GUI.Label(UiRect(new Rect(320f, 242f, 200f, 48f), new Rect(80f, 520f, 180f, 48f)), totalScore.ToString("N0"), runEndStatValueStyle);
+            GUI.Label(UiRect(new Rect(540f, 242f, 200f, 48f), new Rect(270f, 520f, 180f, 48f)), reachedStage + " / " + GoalScores.Length, runEndStatValueStyle);
+            GUI.Label(UiRect(new Rect(760f, 242f, 200f, 48f), new Rect(460f, 520f, 180f, 48f)), completedPacks.ToString("N0"), runEndStatValueStyle);
 
-            GUI.Label(UiRect(new Rect(335f, 370f, 610f, 42f), new Rect(80f, 585f, 560f, 62f)),
+            GUI.Label(UiRect(new Rect(335f, 300f, 610f, 42f), new Rect(80f, 585f, 560f, 62f)),
                 Ui("\uB77C\uC6B4\uB4DC \uC810\uC218  ", "ROUND SCORE  ") + roundValue, runEndBodyStyle);
-            GUI.Label(UiRect(new Rect(335f, 410f, 610f, 32f), new Rect(80f, 650f, 560f, 54f)),
+            GUI.Label(UiRect(new Rect(335f, 340f, 610f, 32f), new Rect(80f, 650f, 560f, 54f)),
                 Ui("\uC544\uB798 \uB371 \uCE74\uB4DC\uB97C \uB20C\uB7EC \uC0C1\uC138\uD788 \uBCFC \uC218 \uC788\uC5B4\uC694.", "Select a deck card below to inspect it."), runEndHintStyle);
 
-            if (!sharedResultMode && GUI.Button(UiRect(new Rect(360f, 470f, 260f, 70f), new Rect(90f, 755f, 250f, 76f)), Ui("\uACF5\uC720", "Share"), runEndButtonStyle))
-                ShareCurrentResult();
-            string playButtonText = sharedResultMode
-                ? Ui("\uB3C4\uC804\uD558\uAE30", "Challenge")
-                : Ui("\uB2E4\uC2DC \uC2DC\uC791", "Restart");
-            Rect playButtonRect = IsPortraitUi
-                ? new Rect(sharedResultMode ? 235f : 380f, 755f, 250f, 76f)
-                : new Rect(sharedResultMode ? 510f : 660f, 470f, 260f, 70f);
-            if (GUI.Button(playButtonRect, playButtonText, runEndButtonStyle))
-                StartNewRun();
+            Rect leftButtonRect = UiRect(new Rect(360f, 400f, 260f, 70f), new Rect(90f, 755f, 250f, 76f));
+            Rect rightButtonRect = UiRect(new Rect(660f, 400f, 260f, 70f), new Rect(380f, 755f, 250f, 76f));
+            if (sharedResultMode)
+            {
+                if (GUI.Button(leftButtonRect, Ui("\uD329 \uAE4C\uBCF4\uAE30", "Open a Pack"), runEndButtonStyle))
+                {
+                    GUI.matrix = previousMatrix;
+                    BeginSharedPackPreview();
+                    return;
+                }
+                if (GUI.Button(rightButtonRect, Ui("\uB3C4\uC804\uD558\uAE30", "Challenge"), runEndButtonStyle))
+                    StartNewRun();
+            }
+            else
+            {
+                if (GUI.Button(leftButtonRect, Ui("\uACF5\uC720", "Share"), runEndButtonStyle))
+                    ShareCurrentResult();
+                if (GUI.Button(rightButtonRect, Ui("\uB2E4\uC2DC \uC2DC\uC791", "Restart"), runEndButtonStyle))
+                    StartNewRun();
+            }
             if (!sharedResultMode && !string.IsNullOrEmpty(shareFeedback) && Time.unscaledTime < shareFeedbackUntil)
-                GUI.Label(UiRect(new Rect(340f, 548f, 600f, 38f), new Rect(85f, 842f, 550f, 42f)), shareFeedback, runEndHintStyle);
+                GUI.Label(UiRect(new Rect(340f, 478f, 600f, 38f), new Rect(85f, 842f, 550f, 42f)), shareFeedback, runEndHintStyle);
             GUI.matrix = previousMatrix;
         }
         private void DrawDeckInspectionControls(float scale, float offsetX, float offsetY)
@@ -5150,7 +5280,11 @@ namespace CardOpen.Prototype
             Color previousColor = GUI.color;
             GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
                 new Vector3(scale, scale, 1f));
-            GUI.Label(UiRect(new Rect(24f, 516f, 260f, 34f), new Rect(24f, 965f + PortraitExtraHeight, 260f, 42f)), Ui("\uB371  ", "Deck  ") + deckCards.Count + "/5", deckHeaderStyle);
+            bool resultScreen = phase == RevealPhase.GameOver || phase == RevealPhase.RunCleared;
+            Rect deckHeaderRect = resultScreen && !IsPortraitUi
+                ? new Rect(470f, 545f, 260f, 34f)
+                : UiRect(new Rect(24f, 516f, 260f, 34f), new Rect(75f, 975f + PortraitExtraHeight, 260f, 42f));
+            GUI.Label(deckHeaderRect, Ui("\uB371  ", "Deck  ") + deckCards.Count + "/5", deckHeaderStyle);
             EnsureDeckStatusStyles();
             for (int i = 0; i < deckCards.Count; i++)
             {
@@ -5159,9 +5293,13 @@ namespace CardOpen.Prototype
                 string progressText = GetDeckProgressText(card, false);
                 if (string.IsNullOrEmpty(progressText)) continue;
                 int slot = Mathf.Clamp(card.DeckSlot, 0, 4);
+                int progressLineCount = progressText.Split('\n').Length;
+                float portraitStatusExtraHeight = Mathf.Max(0, progressLineCount - 1) * 22f;
                 Rect statusRect = IsPortraitUi
-                    ? new Rect(100f + slot * 105f, 1050f + PortraitExtraHeight, 100f, 48f)
-                    : new Rect(14f + slot * 74.25f, 674f, 80f, 40f);
+                    ? new Rect(90f + slot * 110f,
+                        1050f + PortraitExtraHeight - portraitStatusExtraHeight,
+                        100f, 48f + portraitStatusExtraHeight)
+                    : (resultScreen ? new Rect(430f + slot * 85f, 680f, 80f, 40f) : new Rect(14f + slot * 74.25f, 674f, 80f, 40f));
                 DrawStatusLabelWithShadow(statusRect,
                     progressText, deckStatusStyle, new Color(0.55f, 0.95f, 1f));
             }
