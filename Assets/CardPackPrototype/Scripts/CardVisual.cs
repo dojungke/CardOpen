@@ -226,8 +226,8 @@ namespace CardOpen.Prototype
         {
             string body = description ?? string.Empty;
             string natureEffect = useEnglish
-                ? "Triggers in a chain when another Nature card's ability activates."
-                : "다른 자연 카드의 능력이 발동할시 연쇄 발동";
+                ? "When another Nature card ability activates, chain this ability."
+                : "다른 자연 카드의 능력이 발동하면 이 능력 연쇄 발동";
             bool hasNatureChainTarget = false;
             if (data != null && data.DeckAbilities != null)
             {
@@ -241,8 +241,9 @@ namespace CardOpen.Prototype
             }
             bool alreadyDescribesNatureTrigger = body.Contains(natureEffect)
                 || (useEnglish
-                    ? body.IndexOf("another Nature card's ability", System.StringComparison.OrdinalIgnoreCase) >= 0
-                    : body.Contains("다른 자연 카드의 능력이 발동"));
+                    ? body.IndexOf("another Nature card", System.StringComparison.OrdinalIgnoreCase) >= 0
+                        && body.IndexOf("chain", System.StringComparison.OrdinalIgnoreCase) >= 0
+                    : body.Contains("다른 자연 카드") && body.Contains("연쇄 발동"));
             if (data != null && data.HasTag(global::CardTag.Nature)
                 && hasNatureChainTarget && !alreadyDescribesNatureTrigger)
                 body = string.IsNullOrWhiteSpace(body) ? natureEffect : body + "\n" + natureEffect;

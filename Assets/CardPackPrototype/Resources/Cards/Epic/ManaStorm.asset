@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: ManaStorm
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uB9C8\uB098 \uD3ED\uD48D"
-  Description: "\uCE74\uB4DC\uC758 \uC22B\uC790\uB9CC\uD07C \uC2A4\uD0DD\uC744 \uC5BB\uACE0, \uC2A4\uD0DD\uC774 15 \uC774\uC0C1\uC774 \uB418\uBA74 15\uB97C \uC18C\uBAA8\uD574 100% \uC810\uC218 \uBCF4\uB108\uC2A4 \uD68D\uB4DD"
+  Description: "카드 숫자만큼 스택 획득\n스택이 15 이상이면 15를 소모해 100% 점수 보너스 획득"
   EnglishName: "Mana Storm"
-  EnglishDescription: "Gain stacks equal to the card number. At 15 or more stacks, spend 15 to gain a 100% score bonus."
+  EnglishDescription: "Gain stacks equal to the card number.\nAt 15 or more stacks, spend 15 to gain a 100% score bonus."
   Rare: 3
   Image: {fileID: 2800000, guid: 3d116c43f822bbf4fa3178f862af0cff, type: 3}
   FitBackgroundImageToWidth: 1

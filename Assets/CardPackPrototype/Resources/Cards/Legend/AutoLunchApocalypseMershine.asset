@@ -13,8 +13,7 @@ MonoBehaviour:
   m_Name: AutoLunchApocalypseMershine
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uC790\uB3D9 \uBA85\uC2DC \uC885\uB9D0\uC7A5\uCE58"
-  Description: "\uB2E4\uC74C \uCE74\uB4DC\uD329\uC758 \uCE74\uB4DC \uC218\uAC00 3\uC7A5
-    \uC99D\uAC00\uD55C\uB2E4."
+  Description: "다음 카드팩의 카드 수가 3장 증가"
   EnglishName: "Automatic Revelation Apocalypse Device"
   EnglishDescription: "Increase the number of cards in the next pack by 3."
   Rare: 4

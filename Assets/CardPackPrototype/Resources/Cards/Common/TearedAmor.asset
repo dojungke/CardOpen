@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: TearedAmor
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uD5C8\uB984\uD55C \uCC9C\uAC11\uC637"
-  Description: "이번 카드에서 효과가 3개 이상 발동할 시 100점 획득"
+  Description: "이번 카드에서 효과가 3개 이상 발동하면 100점 획득"
   EnglishName: "Worn Cloth Armor"
   EnglishDescription: "If 3 or more effects trigger for this card, gain 100 points."
   Rare: 0

@@ -13,8 +13,7 @@ MonoBehaviour:
   m_Name: Battle
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uACA9\uB3CC!"
-  Description: "\uC774 \uCE74\uB4DC\uC640 \uB2E4\uB978 \uC0C9\uC758 \uCE74\uB4DC\uB97C
-    \uBF51\uB294\uB2E4\uBA74 60\uC810 \uD68D\uB4DD"
+  Description: "이 카드와 다른 색의 카드를 뽑으면 60점 획득"
   EnglishName: "Clash!"
   EnglishDescription: "When a card with a different color from this card is drawn, gain 60 points."
   Rare: 1

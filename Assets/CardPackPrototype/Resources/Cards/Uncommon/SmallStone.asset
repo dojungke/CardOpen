@@ -13,8 +13,7 @@ MonoBehaviour:
   m_Name: SmallStone
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uC791\uC740 \uBC14\uC704 \uC815\uB839"
-  Description: "\uC774 \uCE74\uB4DC\uC640 \uAC19\uC740 \uC0C9\uC758 \uCE74\uB4DC\uC5D0
-    20% \uC810\uC218 \uBCF4\uB108\uC2A4"
+  Description: "이 카드와 같은 색의 카드에 20% 점수 보너스"
   EnglishName: "Lesser Rock Spirit"
   EnglishDescription: "Cards with the same color as this card gain a 20% score bonus."
   Rare: 1

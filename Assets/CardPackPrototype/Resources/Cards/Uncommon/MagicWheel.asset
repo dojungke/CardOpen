@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: MagicWheel
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uB9C8\uACF5\uD559 \uBC14\uD034"
-  Description: "점수 보너스 효율 30% 증가\n최대 2장까지 중첩된다."
+  Description: "점수 보너스 효율 30% 증가\n최대 2장까지 중첩"
   EnglishName: "Magitech Wheel"
   EnglishDescription: "Increase score bonus efficiency by 30%.\nStacks up to 2 copies."
   Rare: 1

@@ -13,8 +13,7 @@ MonoBehaviour:
   m_Name: MagicScrew
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uB9C8\uACF5\uD559 \uB098\uC0AC"
-  Description: "\uCE74\uB4DC\uB97C \uBF51\uC744 \uB54C\uB9C8\uB2E4 20\uC810 \uD68D\uB4DD\n\uCD5C\uB300
-    4\uC7A5\uAE4C\uC9C0 \uC911\uCCA9\uB41C\uB2E4."
+  Description: "카드를 뽑을 때마다 20점 획득\n최대 4장까지 중첩"
   EnglishName: "Magitech Screw"
   EnglishDescription: "Gain 20 points whenever a card is drawn.\nStacks up to 4 copies."
   Rare: 0

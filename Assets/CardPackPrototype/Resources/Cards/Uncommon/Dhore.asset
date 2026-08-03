@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Dhore
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uC2B9\uB0E5\uC774"
-  Description: "\uC774 \uCE74\uB4DC\uC640 \uAC19\uC740 \uC22B\uC790\uC758 \uCE74\uB4DC\uB97C \uBF51\uC73C\uBA74 300\uC810 \uD68D\uB4DD"
+  Description: "이 카드와 같은 숫자의 카드를 뽑으면 300점 획득"
   EnglishName: "Dhole"
   EnglishDescription: "Gain 300 points when a card with the same number as this card is drawn."
   Rare: 1

@@ -13,8 +13,7 @@ MonoBehaviour:
   m_Name: Attack!
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uACF5\uACA9!"
-  Description: "\uC774\uBC88 \uCE74\uB4DC\uC5D0\uC11C \uD6A8\uACFC\uAC00 3\uAC1C
-    \uC774\uC0C1 \uBC1C\uB3D9\uD560 \uC2DC 15% \uC810\uC218 \uBCF4\uB108\uC2A4"
+  Description: "이번 카드에서 효과가 3개 이상 발동하면 15% 점수 보너스"
   EnglishName: "Attack!"
   EnglishDescription: "If 3 or more effects trigger for this card, gain a 15% score bonus."
   Rare: 0

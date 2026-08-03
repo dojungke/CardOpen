@@ -13,8 +13,7 @@ MonoBehaviour:
   m_Name: KingAmorRatSnake
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uC9F1\uD070\uBC40"
-  Description: "\uC22B\uC790\uAC00 \uC9DD\uC218\uC778 \uCE74\uB4DC\uB97C \uBF51\uC73C\uBA74
-    50% \uC810\uC218 \uBCF4\uB108\uC2A4"
+  Description: "숫자가 짝수인 카드를 뽑으면 50% 점수 보너스"
   EnglishName: "Giant Snake"
   EnglishDescription: "When an even-numbered card is drawn, gain a 50% score bonus."
   Rare: 3

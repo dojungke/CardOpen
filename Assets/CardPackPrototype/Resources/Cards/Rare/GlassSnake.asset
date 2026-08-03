@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: GlassSnake
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uC720\uB9AC\uB3C4\uB9C8\uBC40"
-  Description: "\uCE74\uB4DC\uC758 \uC22B\uC790 * 50\uC758 \uC810\uC218 \uD68D\uB4DD"
+  Description: "카드 숫자의 50배만큼 점수 획득"
   EnglishName: "Glass Lizard"
   EnglishDescription: "Gain points equal to the card number multiplied by 50."
   Rare: 2

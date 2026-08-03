@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1270bfa34d1a0954b9836462c93efbbe, type: 3}
+  m_Name: Test
+  m_EditorClassIdentifier: Assembly-CSharp::CardPackData
+  Name: "\uB514\uBC84\uAE45"
+  FrontImage: {fileID: 2800000, guid: c1a46e13eccc6d84dbbd28a613a072ec, type: 3}
+  BackImage: {fileID: 2800000, guid: b924adb631b3ba04a8bf1f21469b123d, type: 3}
+  CardsPerPack: 5
+  UseRarityRates: 1
+  CommonRate: 20
+  UncommonRate: 20
+  RareRate: 20
+  EpicRate: 20
+  LegendaryRate: 20
+  RandomizeNumberAndColor: 1
+  IncludeCards:
+  - Card: {fileID: 11400000, guid: 6e3f472f2edb4344b8066ede99ccbd6d, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 20
+  - Card: {fileID: 11400000, guid: 45933344158043ef8fc652603068e159, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 20

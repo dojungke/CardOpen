@@ -13,8 +13,7 @@ MonoBehaviour:
   m_Name: TaleOfLight
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uBE5B \uC774\uC57C\uAE30"
-  Description: "\uD558\uC591\uC0C9 \uCE74\uB4DC\uB97C \uB3D9\uC2DC\uC5D0 \uBAA8\uB4E0
-    \uC0C9\uC758 \uCE74\uB4DC\uB85C \uCDE8\uAE09\uD55C\uB2E4"
+  Description: "하양색 카드를 동시에 모든 색의 카드로 취급"
   EnglishName: "Tale of Light"
   EnglishDescription: "White cards count as every color at the same time."
   Rare: 2

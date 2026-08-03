@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Summon
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uC18C\uD658"
-  Description: "\uCE74\uB4DC\uD329\uC744 \uC5F4 \uB54C \uC790\uC5F0 \uCE74\uB4DC 1\uC7A5\uC744 \uCE74\uB4DC\uD329 \uB9E8\uB4A4\uC5D0 \uC0DD\uC131"
+  Description: "카드팩을 열 때 자연 카드 1장을 카드팩 맨 뒤에 생성"
   EnglishName: "Summon"
   EnglishDescription: "When a card pack is opened, add 1 Nature card to the end of the pack."
   Rare: 2

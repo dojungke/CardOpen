@@ -15,7 +15,7 @@ MonoBehaviour:
   Name: "\uC601\uC6C5 \uC0C8\uB85C\uC6B4"
   FrontImage: {fileID: 2800000, guid: 707b3660e66336b409c4219d09e5031f, type: 3}
   BackImage: {fileID: 2800000, guid: 355fe325746924a47af1f181429cf990, type: 3}
-  CardsPerPack: 1
+  CardsPerPack: 5
   UseRarityRates: 1
   CommonRate: 0
   UncommonRate: 0

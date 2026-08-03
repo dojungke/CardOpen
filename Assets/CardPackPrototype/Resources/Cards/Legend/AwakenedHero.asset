@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: AwakenedHero
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uAC01\uC131 \uC6A9\uC0AC"
-  Description: "모든 카드에 100%의 점수 보너스와 500점을 제공한다, 무기를 1개 장착할 수 있다."
+  Description: "카드를 뽑을 때마다 500점 획득\n모든 카드에 100% 점수 보너스\n무기를 1개 장착할 수 있다"
   EnglishName: "Awakened Hero"
-  EnglishDescription: "Grants every card a 100% score bonus and 500 points. Can equip 1 weapon."
+  EnglishDescription: "Whenever a card is drawn, gain 500 points.\nAll cards gain a 100% score bonus.\nCan equip 1 weapon."
   Rare: 4
   Image: {fileID: 2800000, guid: c64f4fa031d149ecb9ae2b9b7171e5b4, type: 3}
   FitBackgroundImageToWidth: 0

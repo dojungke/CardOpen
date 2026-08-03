@@ -13,12 +13,9 @@ MonoBehaviour:
   m_Name: MagicSword
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uB9C8\uBC95 \uAC80\uC220"
-  Description: "\uCE74\uB4DC\uC758 \uC22B\uC790\uB97C \uC2A4\uD0DD\uC73C\uB85C \uD68D\uB4DD,
-    3 \uC774\uC0C1\uC774 \uB418\uBA74 3\uAC1C \uC18C\uBAA8\uD574\uC11C \uC774\uBC88
-    \uD329\uB3D9\uC548 \uC9C0\uC18D\uB418\uB294 \uC810\uC218 \uBCF4\uB108\uC2A4 10%
-    \uD68D\uB4DD"
+  Description: "카드 숫자만큼 스택 획득\n스택이 3 이상이면 3개를 소모해 이번 팩 동안 10% 점수 보너스 획득\n같은 효과 중첩 가능"
   EnglishName: "Magic Swordsmanship"
-  EnglishDescription: "Gain stacks equal to the card number. At 3 or more stacks, spend 3 to gain a stacking 10% score bonus for this pack."
+  EnglishDescription: "Gain stacks equal to the card number.\nAt 3 or more stacks, spend 3 to gain a stacking 10% score bonus for this pack."
   Rare: 1
   Image: {fileID: 2800000, guid: 97eab458920045a499f1d6c8a3444027, type: 3}
   FitBackgroundImageToWidth: 1

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: MagicEngineeringSatellite
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uB9C8\uACF5\uD559 \uC704\uC131"
-  Description: "카드를 뽑을 때마다 80점 획득\n모든 카드에 50%의 점수 보너스\n점수 보너스 효율 60% 증가\n카드를 뽑을 때마다 이번 팩 동안 유지되는 누적 점수 보너스 20% 획득"
+  Description: "카드를 뽑을 때마다 80점 획득\n모든 카드에 50% 점수 보너스\n점수 보너스 효율 60% 증가\n카드를 뽑을 때마다 이번 팩 동안 유지되는 누적 점수 보너스 20% 획득"
   EnglishName: Magitech Satellite
   EnglishDescription: "Whenever a card is drawn, gain 80 points.\nGrant every card a 50% score bonus.\nIncrease score bonus efficiency by 60%.\nWhenever a card is drawn, gain a stacking 20% score bonus that resets after the pack."
   Rare: 4

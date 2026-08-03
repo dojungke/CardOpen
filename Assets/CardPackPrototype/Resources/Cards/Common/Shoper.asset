@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Shoper
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uC0C1\uC778"
-  Description: "\uC810\uC218 \uBCF4\uB108\uC2A4 \uD6A8\uC728 20% \uC99D\uAC00"
+  Description: "점수 보너스 효율 20% 증가"
   EnglishName: "Merchant"
   EnglishDescription: "Increase score bonus efficiency by 20%."
   Rare: 0

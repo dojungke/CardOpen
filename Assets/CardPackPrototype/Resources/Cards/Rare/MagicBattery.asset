@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: MagicBattery
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uB9C8\uACF5\uD559 \uBC30\uD130\uB9AC"
-  Description: "카드를 1장 뽑을 때마다 누적되는 점수 보너스 2% 획득\n최대 2장까지 중첩된다."
+  Description: "카드를 1장 뽑을 때마다 누적되는 점수 보너스 2% 획득\n최대 2장까지 중첩"
   EnglishName: "Magitech Battery"
   EnglishDescription: "Whenever a card is drawn, gain a stacking 2% score bonus.\nStacks up to 2 copies."
   Rare: 2

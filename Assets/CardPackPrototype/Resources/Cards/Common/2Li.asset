@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: 2Li
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uC774\uB9AC"
-  Description: "\uC790\uC2E0\uACFC \uAC19\uC740 \uC0C9\uC758 \uCE74\uB4DC\uAC00 \uB098\uC62C \uC2DC 100\uC810 \uD68D\uB4DD"
+  Description: "이 카드와 같은 색의 카드를 뽑으면 100점 획득"
   EnglishName: "Wolf"
   EnglishDescription: "Gain 100 points when a card with the same color as this card is drawn."
   Rare: 0

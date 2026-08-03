@@ -13,8 +13,7 @@ MonoBehaviour:
   m_Name: AmorRatSnake
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uAD6C\uB801\uC774"
-  Description: "\uC22B\uC790\uAC00 \uC9DD\uC218\uC778 \uCE74\uB4DC\uAC00 \uB098\uC62C
-    \uC2DC 50\uC810 \uD68D\uB4DD"
+  Description: "숫자가 짝수인 카드를 뽑으면 50점 획득"
   EnglishName: "Rat Snake"
   EnglishDescription: "Gain 50 points when an even-numbered card is drawn."
   Rare: 0

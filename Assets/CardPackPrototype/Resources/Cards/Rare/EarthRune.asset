@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: EarthRune
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uB300\uC9C0\uB8EC"
-  Description: "초록색 카드에 40% 점수 보너스, 초록색 카드를 뽑을 시 4% 확률로 홀로그램 인챈트\n다른 종류의 룬을 획득하면 공명한다."
+  Description: "초록색 카드에 40% 점수 보너스\n초록색 카드를 뽑으면 4% 확률로 홀로그램 부여\n다른 종류의 룬을 획득하면 공명"
   EnglishName: "Earth Rune"
-  EnglishDescription: "Green cards gain a 40% score bonus. When a green card is drawn, it has a 4% chance to become Holographic.\nResonates when you obtain a different type of Rune."
+  EnglishDescription: "Green cards gain a 40% score bonus.\nWhen a green card is drawn, it has a 4% chance to become Holographic.\nResonates when you obtain a different type of Rune."
   Rare: 2
   Image: {fileID: 2800000, guid: 014aaeaaa787eba4db7b11c483a1c963, type: 3}
   Tags:

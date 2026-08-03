@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: ApprenticeMage
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uACAC\uC2B5 \uB9C8\uBC95\uC0AC"
-  Description: "카드를 뽑을 때마다 카드의 숫자만큼 점수 보너스 효율 증가를 누적해서 제공 (최대 100%), 마법을 1장 장착할 수 있다."
+  Description: "카드를 뽑을 때마다 카드 숫자만큼 점수 보너스 효율 누적(최대 100%)\n마법을 1장 장착할 수 있다"
   EnglishName: "Apprentice Mage"
-  EnglishDescription: "Whenever a card is drawn, accumulate score bonus efficiency equal to its number, up to 100%. Can equip 1 spell."
+  EnglishDescription: "Whenever a card is drawn, accumulate score bonus efficiency equal to its number, up to 100%.\nCan equip 1 spell."
   Rare: 1
   Image: {fileID: 2800000, guid: ae62bdfd4415c984c84376602fc0b871, type: 3}
   Tags:

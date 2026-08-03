@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Megu
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uBA54\uAD6C"
-  Description: "\uCE74\uB4DC\uB97C \uBF51\uC744 \uB54C\uB9C8\uB2E4 40\uC810 \uD68D\uB4DD"
+  Description: "카드를 뽑을 때마다 40점 획득"
   EnglishName: "Megu"
   EnglishDescription: "Gain 40 points whenever a card is drawn."
   Rare: 1
