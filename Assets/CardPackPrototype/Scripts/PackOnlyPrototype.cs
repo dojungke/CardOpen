@@ -2552,7 +2552,7 @@ namespace CardOpen.Prototype
             {
                 ScorePopup popup = scorePopups[i];
                 float visualAge = (now - popup.StartTime) * Mathf.Max(1f, popup.PlaybackSpeed);
-                popup.PlaybackSpeed = 4f;
+                popup.PlaybackSpeed = 12f;
                 popup.StartTime = now - visualAge / popup.PlaybackSpeed;
                 if (popup.AddedToPendingScore) continue;
                 popup.AddedToPendingScore = true;
