@@ -107,7 +107,7 @@ namespace CardOpen.Prototype
         private const float ReferenceHeight = 720f;
         private const float PortraitWidth = 720f;
         private const float PortraitHeight = 1280f;
-        private static readonly int[] GoalScores = { 5000, 10000, 20000, 30000, 50000 };
+        private static readonly int[] GoalScores = { 3000, 10000, 20000, 30000, 50000 };
         private const float RevealedCardScale = 1.5f;
         private static readonly Rect PackTearZone = new Rect(410f, 0f, 460f, 380f);
         private static readonly Rect CardGestureZone = new Rect(500f, 105f, 340f, 505f);
