@@ -107,7 +107,7 @@ namespace CardOpen.Prototype
         private const float ReferenceHeight = 720f;
         private const float PortraitWidth = 720f;
         private const float PortraitHeight = 1280f;
-        private static readonly int[] GoalScores = { 5000, 10000, 20000, 35000, 60000, 100000 };
+        private static readonly int[] GoalScores = { 5000, 10000, 20000, 30000, 50000 };
         private const float RevealedCardScale = 1.5f;
         private static readonly Rect PackTearZone = new Rect(410f, 0f, 460f, 380f);
         private static readonly Rect CardGestureZone = new Rect(500f, 105f, 340f, 505f);
@@ -118,9 +118,10 @@ namespace CardOpen.Prototype
         private readonly List<StoredCard> currentPackCards = new List<StoredCard>();
         private readonly List<StoredCard> deckCards = new List<StoredCard>();
         private StoredCard previousRevealedCard;
-        private readonly HashSet<StoredCard> naturallyTriggeredNatureOwners = new HashSet<StoredCard>();
+        private readonly Dictionary<StoredCard, int> naturallyTriggeredNatureCounts = new Dictionary<StoredCard, int>();
         private readonly HashSet<StoredCard> pendingPackOpenNatureSources = new HashSet<StoredCard>();
         private bool natureAbilityChainActive;
+        private int natureAbilityChainTriggerCount;
         private readonly List<GameObject> deckVisuals = new List<GameObject>();
         private readonly List<ScorePopup> scorePopups = new List<ScorePopup>();
         private readonly Dictionary<string, Material> materials = new Dictionary<string, Material>();
@@ -184,6 +185,7 @@ namespace CardOpen.Prototype
         private Quaternion gestureStartRotation;
         private Transform inspectionTarget;
         private Quaternion inspectionStartRotation;
+        private Vector3 inspectionPivotWorld;
         private Coroutine inspectionReturnRoutine;
         private CardVisual activeSlidingCard;
         private bool cardTransitionActive;
@@ -296,19 +298,19 @@ namespace CardOpen.Prototype
             string url = BuildSharedResultUrl();
             if (string.IsNullOrEmpty(url))
             {
-                shareFeedback = Ui("WebGL 빌드에서 공유할 수 있습니다.", "Sharing is available in the WebGL build.");
+                shareFeedback = Ui("WebGL \uBE4C\uB4DC\uC5D0\uC11C \uACF5\uC720\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.", "Sharing is available in the WebGL build.");
                 shareFeedbackUntil = Time.unscaledTime + 3f;
                 return;
             }
 
-            string title = Ui("카드팩 결과", "Card Pack Result");
+            string title = Ui("\uCE74\uB4DC\uD329 \uACB0\uACFC", "Card Pack Result");
             string message = Ui("총점 ", "Total score ") + totalScore.ToString("N0");
 #if UNITY_WEBGL && !UNITY_EDITOR
             CardOpenShareResult(title, message, url);
-            shareFeedback = Ui("공유 창을 열었습니다.", "Share dialog opened.");
+            shareFeedback = Ui("\uACF5\uC720 \uCC3D\uC744 \uC5F4\uC5C8\uC2B5\uB2C8\uB2E4.", "Share dialog opened.");
 #else
             GUIUtility.systemCopyBuffer = url;
-            shareFeedback = Ui("공유 링크를 복사했습니다.", "Share link copied.");
+            shareFeedback = Ui("\uACF5\uC720 \uB9C1\uD06C\uB97C \uBCF5\uC0AC\uD588\uC2B5\uB2C8\uB2E4.", "Share link copied.");
 #endif
             shareFeedbackUntil = Time.unscaledTime + 3f;
         }
@@ -552,7 +554,15 @@ namespace CardOpen.Prototype
             RestoreIntValues(source.PerPackTriggers, card.PerPackTriggerCountByAbility);
             RestoreIntValues(source.PacksElapsed, card.PacksElapsedByAbility);
             RestoreFloatValues(source.AccumulatedPercent, card.AccumulatedPercentByAbility);
+            RemoveLegacySatelliteRelics(card);
             return card;
+        }
+
+        private static void RemoveLegacySatelliteRelics(StoredCard card)
+        {
+            if (card == null || card.Data == null || card.Data.name != "MagicEngineeringSatellite")
+                return;
+            card.InheritedRelics.Clear();
         }
 
         private static void RestoreIntValues(SharedIntValue[] source, Dictionary<int, int> target)
@@ -575,7 +585,7 @@ namespace CardOpen.Prototype
                 LayoutBackground(Camera.main);
             if (pack != null && phase == RevealPhase.Pack)
             {
-                pack.transform.localScale = Vector3.one * ResponsiveWorldScale(1.85f, 1.50f);
+                pack.transform.localScale = Vector3.one * ResponsiveWorldScale(1.95f, 1.50f);
                 if (!gestureDragging && !inspectionDragging)
                     pack.transform.position = CurrentPackHome;
             }
@@ -584,7 +594,7 @@ namespace CardOpen.Prototype
                 if (pack != null)
                 {
                     pack.transform.position = CurrentPackHome;
-                    pack.transform.localScale = Vector3.one * ResponsiveWorldScale(1.85f, 1.50f);
+                    pack.transform.localScale = Vector3.one * ResponsiveWorldScale(1.95f, 1.50f);
                 }
                 if (cardStack != null)
                 {
@@ -867,7 +877,7 @@ namespace CardOpen.Prototype
             pack.SetHolographic(currentPackIsHolographic);
             tearVisual.ResetTear();
             pack.transform.position = CurrentPackHome;
-            pack.transform.localScale = Vector3.one * ResponsiveWorldScale(1.85f, 1.50f);
+            pack.transform.localScale = Vector3.one * ResponsiveWorldScale(1.95f, 1.50f);
             pack.transform.rotation = Quaternion.identity;
             phase = RevealPhase.Pack;
 
@@ -947,7 +957,7 @@ namespace CardOpen.Prototype
             {
                 runtimeFallbackCard = ScriptableObject.CreateInstance<global::CardData>();
                 runtimeFallbackCard.Name = "마법 총알";
-                runtimeFallbackCard.Description = "7의 피해를 줍니다.";
+                runtimeFallbackCard.Description = "7\uC758 \uD53C\uD574\uB97C \uC90D\uB2C8\uB2E4.";
                 runtimeFallbackCard.EnglishName = "Magic Bullet";
                 runtimeFallbackCard.EnglishDescription = "Deals 7 damage.";
                 runtimeFallbackCard.Rare = global::CardRarity.Common;
@@ -1350,9 +1360,9 @@ namespace CardOpen.Prototype
                 dragStart = point;
                 dragDelta = Vector2.zero;
                 Rect packZone = IsPortraitUi
-                    ? new Rect(130f, 150f, 460f, 620f + PortraitExtraHeight * 0.5f) : PackTearZone;
+                    ? new Rect(145f, 175f, 430f, 580f + PortraitExtraHeight * 0.45f) : PackTearZone;
                 Rect cardZone = IsPortraitUi
-                    ? new Rect(120f, 150f, 480f, 900f + PortraitExtraHeight) : CardGestureZone;
+                    ? new Rect(145f, 185f, 430f, 800f + PortraitExtraHeight * 0.85f) : CardGestureZone;
                 bool objectGesture = phase == RevealPhase.Pack ? packZone.Contains(point) : cardZone.Contains(point);
                 if (objectGesture) BeginObjectGesture(); else BeginInspection();
                 inputEvent.Use();
@@ -1384,7 +1394,7 @@ namespace CardOpen.Prototype
         {
             if (!cardTransitionActive) return;
             Rect cardZone = IsPortraitUi
-                ? new Rect(120f, 150f, 480f, 900f + PortraitExtraHeight) : CardGestureZone;
+                ? new Rect(145f, 185f, 430f, 800f + PortraitExtraHeight * 0.85f) : CardGestureZone;
             if (inputEvent.type == EventType.MouseDown && cardZone.Contains(point))
             {
                 dragStart = point;
@@ -1441,12 +1451,19 @@ namespace CardOpen.Prototype
             inspectionDragging = true;
             gestureDragging = false;
             inspectionStartRotation = inspectionTarget.rotation;
+            if (inspectionTarget == cardStack)
+                inspectionPivotWorld = inspectionTarget.position
+                    + inspectionStartRotation * CardHome;
         }
 
         private void UpdateInspectionRotation()
         {
-            if (inspectionTarget != null)
-                inspectionTarget.rotation = Quaternion.Euler(-dragDelta.y * 0.24f, dragDelta.x * 0.28f, 0f) * inspectionStartRotation;
+            if (inspectionTarget == null) return;
+            Quaternion rotation = Quaternion.Euler(-dragDelta.y * 0.24f,
+                dragDelta.x * 0.28f, 0f) * inspectionStartRotation;
+            inspectionTarget.rotation = rotation;
+            if (inspectionTarget == cardStack)
+                inspectionTarget.position = inspectionPivotWorld - rotation * CardHome;
         }
 
         private void BeginInspectionReturn(Transform target)
@@ -1666,18 +1683,18 @@ namespace CardOpen.Prototype
                 case global::CardRarity.Epic:
                     earnedScore = 500; reason = Ui("\uC601\uC6C5 \uCE74\uB4DC", "Epic card"); popupColor = new Color(1f, 0.73f, 0.22f); break;
                 case global::CardRarity.Legendary:
-                    earnedScore = 500; reason = Ui("\uC804\uC124 \uCE74\uB4DC", "Legendary card"); popupColor = new Color(1f, 0.82f, 0.28f); break;
+                    earnedScore = 1000; reason = Ui("\uC804\uC124 \uCE74\uB4DC", "Legendary card"); popupColor = new Color(1f, 0.82f, 0.28f); break;
                 default:
                     earnedScore = 100; reason = Ui("\uC77C\uBC18 \uCE74\uB4DC", "Common card"); popupColor = Color.white; break;
             }
 
             int baseCardScoreTotal = earnedScore * (currentCard.IsHolographic ? 2 : 1);
-            AddScorePopup("+" + earnedScore + Ui("\uC810\n", " pts\n") + reason, popupColor,
+            AddScorePopup(reason + "\n+" + earnedScore + Ui("\uC810", " pts"), popupColor,
                 Time.unscaledTime, scorePopups.Count, earnedScore);
             RegisterOtherCardScoreEvent(currentCard);
             if (currentCard.IsHolographic)
             {
-                AddScorePopup("+" + earnedScore + Ui("\uC810\n\uD640\uB85C\uADF8\uB7A8!", " pts\nHolographic!"), new Color(0.55f, 0.9f, 1f),
+                AddScorePopup(Ui("\uD640\uB85C\uADF8\uB7A8!\n+", "Holographic!\n+") + earnedScore + Ui("\uC810", " pts"), new Color(0.55f, 0.9f, 1f),
                     Time.unscaledTime + 0.22f, scorePopups.Count, earnedScore);
                 RegisterOtherCardScoreEvent(currentCard);
             }
@@ -1731,11 +1748,16 @@ namespace CardOpen.Prototype
                         continue;
                     }
 
-                    if (!DoesDeckAbilityTrigger(ability, abilityOwner, revealedCard, triggerRequirementCount)) continue;
+                    int abilityTriggerCount = GetDeckAbilityTriggerCount(
+                        ability, abilityOwner, revealedCard, triggerRequirementCount);
+                    if (abilityTriggerCount <= 0) continue;
                     for (int copy = 0; copy < effectiveCopies; copy++)
                     {
-                        flatAbilityScoreTotal += flatScore;
-                        AddDeckAbilityPopup(abilityOwner, ability, flatScore, copy, triggeredCount++);
+                        for (int trigger = 0; trigger < abilityTriggerCount; trigger++)
+                        {
+                            flatAbilityScoreTotal += flatScore;
+                            AddDeckAbilityPopup(abilityOwner, ability, flatScore, copy, triggeredCount++);
+                        }
                     }
                 }
             }
@@ -1829,7 +1851,9 @@ namespace CardOpen.Prototype
             {
                 if (pendingSource != null && pendingSource.Data != null
                     && pendingSource.Data.HasTag(global::CardTag.Nature))
-                    naturallyTriggeredNatureOwners.Add(pendingSource);
+                {
+                    AddNaturallyTriggeredNatureCount(pendingSource, GetEffectiveDeckCopyCount(pendingSource));
+                }
             }
             pendingPackOpenNatureSources.Clear();
             if (revealedCard != null)
@@ -1843,21 +1867,23 @@ namespace CardOpen.Prototype
                     for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
                     {
                         global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
-                        if (ability == null || !IsNatureChainEligibleEffect(ability.Effect)
-                            || !DoesDeckAbilityTriggerNormally(ability, owner, revealedCard)) continue;
-                        naturallyTriggeredNatureOwners.Add(owner);
-                        break;
+                        if (!IsNatureChainEligibleAbility(ability)) continue;
+                        int naturalTriggerCount = GetNormalDeckAbilityTriggerCount(
+                            ability, owner, revealedCard);
+                        if (naturalTriggerCount <= 0) continue;
+                        AddNaturallyTriggeredNatureCount(owner,
+                            GetEffectiveDeckCopyCount(owner) * naturalTriggerCount);
                     }
                 }
             }
 
-            if (naturallyTriggeredNatureOwners.Count == 0) return;
+            if (natureAbilityChainTriggerCount == 0) return;
             for (int i = 0; i < GetAbilityOwnerCount(); i++)
             {
                 StoredCard owner = GetAbilityOwnerAt(i);
                 if (owner != null && owner.Data != null
                     && owner.Data.HasTag(global::CardTag.Nature)
-                    && !naturallyTriggeredNatureOwners.Contains(owner)
+                    && natureAbilityChainTriggerCount > GetNaturallyTriggeredNatureCount(owner)
                     && HasNatureChainTargetAbility(owner.Data))
                 {
                     natureAbilityChainActive = true;
@@ -1869,7 +1895,22 @@ namespace CardOpen.Prototype
         private void ClearNatureAbilityChain()
         {
             natureAbilityChainActive = false;
-            naturallyTriggeredNatureOwners.Clear();
+            natureAbilityChainTriggerCount = 0;
+            naturallyTriggeredNatureCounts.Clear();
+        }
+
+        private void AddNaturallyTriggeredNatureCount(StoredCard owner, int count)
+        {
+            if (owner == null || count <= 0) return;
+            naturallyTriggeredNatureCounts.TryGetValue(owner, out int currentCount);
+            naturallyTriggeredNatureCounts[owner] = currentCount + count;
+            natureAbilityChainTriggerCount += count;
+        }
+
+        private int GetNaturallyTriggeredNatureCount(StoredCard owner)
+        {
+            if (owner == null) return 0;
+            return naturallyTriggeredNatureCounts.TryGetValue(owner, out int count) ? count : 0;
         }
 
         private static bool HasNatureChainTargetAbility(global::CardData data)
@@ -1959,8 +2000,9 @@ namespace CardOpen.Prototype
                         : (ability.Effect == global::DeckAbilityEffect.AddTriggeredScorePercent
                             || ability.Effect == global::DeckAbilityEffect.AccumulateScoreBonusPerDraw)
                             && ability.PercentBonus > 0f;
-                    if (hasScoreValue && DoesDeckAbilityTrigger(ability, owner, revealedCard))
-                        count += effectiveCopies;
+                    if (hasScoreValue)
+                        count += effectiveCopies * GetDeckAbilityTriggerCount(
+                            ability, owner, revealedCard);
                 }
             }
             return count;
@@ -2411,10 +2453,10 @@ namespace CardOpen.Prototype
             int copyIndex, int triggeredIndex, bool countForOtherCardScoreEvents = true)
         {
             string ownerReason = (IsNatureChainForcedTrigger(owner, ability)
-                    ? Ui("자연-", "Nature - ") : string.Empty)
+                    ? Ui("\uC790\uC5F0-", "Nature - ") : string.Empty)
                 + GetStoredCardDisplayName(owner);
             if (copyIndex > 0) ownerReason += Ui(" \uD640\uB85C\uADF8\uB7A8", " Holographic");
-            AddScorePopup(ownerReason + "  +" + score + Ui("\uC810", " pts"),
+            AddScorePopup(ownerReason + "\n+" + score + Ui("\uC810", " pts"),
                 copyIndex > 0 ? new Color(0.55f, 0.9f, 1f) : new Color(0.66f, 1f, 0.48f),
                 Time.unscaledTime + triggeredIndex * 0.16f, 1 + triggeredIndex % 4, score);
             if (countForOtherCardScoreEvents)
@@ -2883,7 +2925,7 @@ namespace CardOpen.Prototype
                 {
                     global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
                     if (ability == null || ability.Effect != effect) continue;
-                    if (RevealedCardMatchesAnyColor(revealedCard, ability.ApplicableColors))
+                    if (RevealedCardMatchesAnyColor(revealedCard, owner, ability.ApplicableColors))
                     {
                         matchesResonanceColor = true;
                         if (popupOwner == null)
@@ -2941,7 +2983,7 @@ namespace CardOpen.Prototype
         private string ApplyInheritedRelicDescription(StoredCard card, string description)
         {
             if (card == null || card.InheritedRelics.Count == 0) return description;
-            List<string> lines = new List<string> { Ui("[조립 유물 효과]", "[Assembled Relic Effects]") };
+            List<string> lines = new List<string> { Ui("\uC870\uB9BD \uC720\uBB3C \uD6A8\uACFC", "[Assembled Relic Effects]") };
             for (int i = 0; i < card.InheritedRelics.Count; i++)
             {
                 StoredCard relic = card.InheritedRelics[i];
@@ -2954,19 +2996,19 @@ namespace CardOpen.Prototype
                     switch (ability.Effect)
                     {
                         case global::DeckAbilityEffect.AddScore:
-                            lines.Add(Ui("나사: 매 카드 +", "Screw: +") + ability.Score * copies
-                                + Ui("점", " pts each draw"));
+                            lines.Add(Ui("\uB098\uC0AC: \uB9E4 \uCE74\uB4DC +", "Screw: +") + ability.Score * copies
+                                + Ui("\uC810", " pts each draw"));
                             break;
                         case global::DeckAbilityEffect.IncreaseScoreBonusEfficiency:
-                            lines.Add(Ui("바퀴: 보너스 효율 +", "Wheel: bonus efficiency +") +
+                            lines.Add(Ui("\uBC14\uD034: \uBCF4\uB108\uC2A4 \uD6A8\uC728 +", "Wheel: bonus efficiency +") +
                                 (ability.PercentBonus * copies).ToString("0.#") + "%");
                             break;
                         case global::DeckAbilityEffect.AccumulateScoreBonusPerDraw:
                             string label = relic.Data.name == "MagicEngine"
-                                ? Ui("엔진", "Engine") : Ui("배터리", "Battery");
+                                ? Ui("\uC5D4\uC9C4", "Engine") : Ui("\uBC30\uD130\uB9AC", "Battery");
                             string suffix = ability.ResetAccumulationAfterPack
-                                ? Ui(" (팩 종료 시 초기화)", " (resets after pack)") : string.Empty;
-                            lines.Add(label + Ui(": 매 카드 누적 +", ": accumulates +") +
+                                ? Ui(" (\uD329 \uC885\uB8CC \uC2DC \uCD08\uAE30\uD654)", " (resets after pack)") : string.Empty;
+                            lines.Add(label + Ui(": \uB9E4 \uCE74\uB4DC \uB204\uC801 +", ": accumulates +") +
                                 (ability.PercentBonus * copies).ToString("0.#")
                                 + Ui("%", "% each draw") + suffix);
                             break;
@@ -3005,13 +3047,13 @@ namespace CardOpen.Prototype
             global::CardData magic = card.EquippedMagic.Data;
             string equippedEffect = magic.GetLocalizedName(IsEnglishUi) + ": "
                 + (magic.GetLocalizedDescription(IsEnglishUi) ?? string.Empty)
-                + Ui(" (장착됨)", " (Equipped)");
+                + Ui(" (\uC7A5\uCC29\uB428)", " (Equipped)");
             string[] markers =
             {
-                "마법을 1장 장착할 수 있다.",
-                "마법을 1장 장착할 수 있다",
-                "마법을 하나 장착할 수 있다.",
-                "마법을 하나 장착할수 있다.",
+                "\uB9C8\uBC95\uC744 1\uC7A5 \uC7A5\uCC29\uD560 \uC218 \uC788\uB2E4.",
+                "\uB9C8\uBC95\uC744 1\uC7A5 \uC7A5\uCC29\uD560 \uC218 \uC788\uB2E4",
+                "\uB9C8\uBC95\uC744 \uD558\uB098 \uC7A5\uCC29\uD560 \uC218 \uC788\uB2E4.",
+                "\uB9C8\uBC95\uC744 \uD558\uB098 \uC7A5\uCC29\uD560\uC218 \uC788\uB2E4.",
                 "Can equip 1 spell.",
                 "Can equip one spell."
             };
@@ -3031,13 +3073,13 @@ namespace CardOpen.Prototype
             global::CardData weapon = card.EquippedWeapon.Data;
             string equippedEffect = weapon.GetLocalizedName(IsEnglishUi) + ": "
                 + (weapon.GetLocalizedDescription(IsEnglishUi) ?? string.Empty)
-                + Ui(" (장착됨)", " (Equipped)");
+                + Ui(" (\uC7A5\uCC29\uB428)", " (Equipped)");
             string[] markers =
             {
-                "무기를 1개 장착할 수 있다.",
-                "무기를 1개 장착할 수 있다",
-                "무기를 하나 장착할 수 있다.",
-                "무기를 하나 장착할수 있다.",
+                "\uBB34\uAE30\uB97C 1\uAC1C \uC7A5\uCC29\uD560 \uC218 \uC788\uB2E4.",
+                "\uBB34\uAE30\uB97C 1\uAC1C \uC7A5\uCC29\uD560 \uC218 \uC788\uB2E4",
+                "\uBB34\uAE30\uB97C \uD558\uB098 \uC7A5\uCC29\uD560 \uC218 \uC788\uB2E4.",
+                "\uBB34\uAE30\uB97C \uD558\uB098 \uC7A5\uCC29\uD560\uC218 \uC788\uB2E4.",
                 "Can equip 1 weapon.",
                 "Can equip one weapon."
             };
@@ -3095,10 +3137,28 @@ namespace CardOpen.Prototype
                     GetStoredCardDisplayDescription(deckCards[i]), IsEnglishUi);
             }
         }
+        private int GetDeckAbilityTriggerCount(global::CardDeckAbility ability, StoredCard owner,
+            StoredCard revealedCard, int triggeredEffectCount = 0)
+        {
+            int triggerCount = GetNormalDeckAbilityTriggerCount(
+                ability, owner, revealedCard, triggeredEffectCount);
+            if (IsNatureChainForcedTrigger(owner, ability))
+                triggerCount += Mathf.Max(0, natureAbilityChainTriggerCount
+                    - GetNaturallyTriggeredNatureCount(owner));
+            return triggerCount;
+        }
+
+        private int GetNormalDeckAbilityTriggerCount(global::CardDeckAbility ability, StoredCard owner,
+            StoredCard revealedCard, int triggeredEffectCount = 0)
+        {
+            if (!DoesDeckAbilityTriggerNormally(ability, owner, revealedCard, triggeredEffectCount)) return 0;
+            return ability.Trigger == global::DeckAbilityTrigger.IncludedColors
+                ? CountMatchingAbilityColors(revealedCard, owner, ability.ApplicableColors) : 1;
+        }
+
         private bool DoesDeckAbilityTrigger(global::CardDeckAbility ability, StoredCard owner, StoredCard revealedCard, int triggeredEffectCount = 0)
         {
-            if (DoesDeckAbilityTriggerNormally(ability, owner, revealedCard, triggeredEffectCount)) return true;
-            return IsNatureChainForcedTrigger(owner, ability);
+            return GetDeckAbilityTriggerCount(ability, owner, revealedCard, triggeredEffectCount) > 0;
         }
 
         private bool IsNatureChainForcedTrigger(StoredCard owner, global::CardDeckAbility ability)
@@ -3106,7 +3166,7 @@ namespace CardOpen.Prototype
             return natureAbilityChainActive
                 && owner != null && owner.Data != null
                 && owner.Data.HasTag(global::CardTag.Nature)
-                && !naturallyTriggeredNatureOwners.Contains(owner)
+                && natureAbilityChainTriggerCount > GetNaturallyTriggeredNatureCount(owner)
                 && IsNatureChainEligibleAbility(ability);
         }
 
@@ -3114,13 +3174,6 @@ namespace CardOpen.Prototype
         {
             switch (ability.Trigger)
             {
-                case global::DeckAbilityTrigger.MatchingColor:
-                    return ColorsMatch(owner.Color, revealedCard.Color);
-                case global::DeckAbilityTrigger.OddNumber:
-                case global::DeckAbilityTrigger.EvenNumber:
-                case global::DeckAbilityTrigger.NumberAtLeastFour:
-                case global::DeckAbilityTrigger.NumberAtMostThree:
-                case global::DeckAbilityTrigger.NumberAtMostTwo:
                 case global::DeckAbilityTrigger.IncludedNumbers:
                     return ability.ApplicableNumbers != null
                         && ability.ApplicableNumbers.Contains(revealedCard.Number);
@@ -3133,19 +3186,14 @@ namespace CardOpen.Prototype
                     return owner.Number == revealedCard.Number;
                 case global::DeckAbilityTrigger.EveryCard:
                     return true;
-                case global::DeckAbilityTrigger.MatchingColorOrRed:
-                    return ColorsMatch(owner.Color, revealedCard.Color)
-                        || RevealedCardHasColor(revealedCard, global::CardColor.Red);
                 case global::DeckAbilityTrigger.PreviousCardDifferentColor:
                     return previousRevealedCard != null
                         && !ColorsMatch(previousRevealedCard.Color, revealedCard.Color);
 
                 case global::DeckAbilityTrigger.TriggeredEffectsAtLeastThree:
                     return triggeredEffectCount >= 3;
-                case global::DeckAbilityTrigger.RedCard:
-                    return RevealedCardHasColor(revealedCard, global::CardColor.Red);
                 case global::DeckAbilityTrigger.IncludedColors:
-                    return RevealedCardMatchesAnyColor(revealedCard, ability.ApplicableColors);
+                    return RevealedCardMatchesAnyColor(revealedCard, owner, ability.ApplicableColors);
 
                 default:
                     return false;
@@ -3166,13 +3214,30 @@ namespace CardOpen.Prototype
                 || (card.Color == global::CardColor.White && HasWhiteCardsCountAsAllColors());
         }
 
-        private bool RevealedCardMatchesAnyColor(StoredCard card, List<global::CardColor> colors)
+        private bool RevealedCardMatchesAnyColor(StoredCard card, StoredCard owner,
+            List<global::AbilityColor> colors)
         {
-            if (card == null || colors == null || colors.Count == 0) return false;
-            return colors.Contains(card.Color)
-                || (card.Color == global::CardColor.White && HasWhiteCardsCountAsAllColors());
+            return CountMatchingAbilityColors(card, owner, colors) > 0;
         }
 
+        private int CountMatchingAbilityColors(StoredCard card, StoredCard owner,
+            List<global::AbilityColor> colors)
+        {
+            if (card == null || colors == null || colors.Count == 0) return 0;
+            int matchCount = 0;
+            for (int i = 0; i < colors.Count; i++)
+            {
+                global::AbilityColor color = colors[i];
+                if (color == global::AbilityColor.Self)
+                {
+                    if (owner != null && ColorsMatch(owner.Color, card.Color)) matchCount++;
+                    continue;
+                }
+
+                if (RevealedCardHasColor(card, (global::CardColor)color)) matchCount++;
+            }
+            return matchCount;
+        }
         private bool HasWhiteCardsCountAsAllColors()
         {
             for (int i = 0; i < GetAbilityOwnerCount(); i++)
@@ -3360,12 +3425,6 @@ namespace CardOpen.Prototype
                 CombinedCopies = 1,
                 CombinedHolographicCopies = resultIsHolographic ? 1 : 0
             };
-            satellite.InheritedRelics.Add(screw);
-            satellite.InheritedRelics.Add(wheel);
-            satellite.InheritedRelics.Add(battery);
-            satellite.InheritedRelics.Add(engine);
-            for (int i = 0; i < satellite.InheritedRelics.Count; i++)
-                satellite.InheritedRelics[i].DeckSlot = -1;
 
             List<int> materialIndices = new List<int>
                 { screwIndex, wheelIndex, batteryIndex, engineIndex };
@@ -4112,6 +4171,22 @@ namespace CardOpen.Prototype
             Color previousColor = GUI.color;
             GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
                 new Vector3(scale, scale, 1f));
+
+            const float portraitPopupStartX = 558f;
+            const float portraitPopupEndX = 532f;
+            const float portraitPopupWidth = 176f;
+
+            TextAnchor previousAlignment = scorePopupStyle.alignment;
+            TextClipping previousClipping = scorePopupStyle.clipping;
+            bool previousWordWrap = scorePopupStyle.wordWrap;
+            int previousFontSize = scorePopupStyle.fontSize;
+            if (IsPortraitUi)
+            {
+                scorePopupStyle.alignment = TextAnchor.MiddleLeft;
+                scorePopupStyle.clipping = TextClipping.Clip;
+                scorePopupStyle.wordWrap = false;
+                scorePopupStyle.fontSize = 22;
+            }
             for (int i = scorePopups.Count - 1; i >= 0; i--)
             {
                 ScorePopup popup = scorePopups[i];
@@ -4125,11 +4200,29 @@ namespace CardOpen.Prototype
 
                 float enter = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(age / 0.18f));
                 float fade = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.9f, 1.35f, age));
-                float x = Mathf.Lerp(IsPortraitUi ? 470f : 783f, IsPortraitUi ? 500f : 837f, enter);
+                float x = Mathf.Lerp(IsPortraitUi ? portraitPopupStartX : 783f,
+                    IsPortraitUi ? portraitPopupEndX : 837f, enter);
                 float y = (IsPortraitUi ? 350f + PortraitExtraHeight * 0.35f : 270f) + popup.Lane * 72f - Mathf.Clamp01(age / 1.35f) * 24f;
                 GUI.color = new Color(popup.Color.r, popup.Color.g, popup.Color.b, fade);
-                GUI.Label(new Rect(x, y, 210f, 76f), popup.Text, scorePopupStyle);
+                if (IsPortraitUi)
+                {
+                    const int maximumPortraitFontSize = 22;
+                    scorePopupStyle.fontSize = maximumPortraitFontSize;
+                    string[] popupLines = popup.Text.Split('\n');
+                    float widestLine = 0f;
+                    for (int lineIndex = 0; lineIndex < popupLines.Length; lineIndex++)
+                        widestLine = Mathf.Max(widestLine,
+                            scorePopupStyle.CalcSize(new GUIContent(popupLines[lineIndex])).x);
+                    if (widestLine > portraitPopupWidth)
+                        scorePopupStyle.fontSize = Mathf.Max(1, Mathf.FloorToInt(
+                            maximumPortraitFontSize * portraitPopupWidth / widestLine));
+                }
+                GUI.Label(new Rect(x, y, IsPortraitUi ? portraitPopupWidth : 210f, 76f), popup.Text, scorePopupStyle);
             }
+            scorePopupStyle.alignment = previousAlignment;
+            scorePopupStyle.clipping = previousClipping;
+            scorePopupStyle.wordWrap = previousWordWrap;
+            scorePopupStyle.fontSize = previousFontSize;
             GUI.color = previousColor;
             GUI.matrix = previousMatrix;
         }
@@ -4310,7 +4403,7 @@ namespace CardOpen.Prototype
             Matrix4x4 previousMatrix = GUI.matrix;
             GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
                 new Vector3(scale, scale, 1f));
-            GUI.Label(UiRect(new Rect(390f, 28f, 500f, 52f), new Rect(110f, 105f, 500f, 52f)), Ui("\uB2E4\uC74C \uD329\uC744 \uC120\uD0DD\uD558\uC138\uC694", "Choose the next pack"), packChoiceTitleStyle);
+            GUI.Label(UiRect(new Rect(390f, 72f, 500f, 52f), new Rect(110f, 150f, 500f, 52f)), Ui("\uB2E4\uC74C \uD329\uC744 \uC120\uD0DD\uD558\uC138\uC694", "Choose the next pack"), packChoiceTitleStyle);
 
             if (GUI.Button(leftInfoButtonRect, "?", discardButtonStyle))
                 OpenPackContents(leftPackChoice);
@@ -4783,13 +4876,13 @@ namespace CardOpen.Prototype
 
         private string GetInheritedRelicShortName(StoredCard relic)
         {
-            if (relic == null || relic.Data == null) return Ui("조립 유물", "Relic");
+            if (relic == null || relic.Data == null) return Ui("\uC870\uB9BD \uC720\uBB3C", "Relic");
             switch (relic.Data.name)
             {
-                case "MagicScrew": return Ui("나사", "Screw");
-                case "MagicWheel": return Ui("바퀴", "Wheel");
-                case "MagicBattery": return Ui("배터리", "Battery");
-                case "MagicEngine": return Ui("엔진", "Engine");
+                case "MagicScrew": return Ui("\uB098\uC0AC", "Screw");
+                case "MagicWheel": return Ui("\uBC14\uD034", "Wheel");
+                case "MagicBattery": return Ui("\uBC30\uD130\uB9AC", "Battery");
+                case "MagicEngine": return Ui("\uC5D4\uC9C4", "Engine");
                 default: return relic.Data.GetLocalizedName(IsEnglishUi);
             }
         }
@@ -5004,7 +5097,7 @@ namespace CardOpen.Prototype
         }
         private void DrawPackTearGuide(float scale, float offsetX, float offsetY)
         {
-            if (phase != RevealPhase.Pack) return;
+            if (phase != RevealPhase.Pack || controlGuideOpen) return;
             if (packGuideStyle == null)
             {
                 packGuideStyle = new GUIStyle(GUI.skin.label)
@@ -5068,7 +5161,7 @@ namespace CardOpen.Prototype
             Matrix4x4 previousMatrix = GUI.matrix;
             GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
                 new Vector3(scale, scale, 1f));
-            string title = Ui("조작법", "Controls");
+            string title = Ui("\uB3C4\uC6C0\uB9D0", "Help");
             GUI.Label(new Rect(24f, 132f, 180f, 38f), title, controlGuideTitleStyle);
             float toggleX = 24f + controlGuideTitleStyle.CalcSize(new GUIContent(title)).x + 8f;
             if (GUI.Button(new Rect(toggleX, 136f, 32f, 30f),
@@ -5081,19 +5174,21 @@ namespace CardOpen.Prototype
             if (controlGuideOpen)
             {
                 string guide = Ui(
-                    "팩 위쪽 드래그로 팩 뜯기\n"
-                    + "카드 드래그로 다음 카드\n"
-                    + "바깥 공간 드래그로 회전\n"
-                    + "카드를 덱으로 드래그하여 보관/교체\n"
+                    "\uD329 \uC704\uCABD \uB4DC\uB798\uADF8\uB85C \uD329 \uB72F\uAE30\n"
+                    + "\uCE74\uB4DC \uB4DC\uB798\uADF8\uB85C \uB2E4\uC74C \uCE74\uB4DC\n"
+                    + "\uBC14\uAE65 \uACF5\uAC04 \uB4DC\uB798\uADF8\uB85C \uD68C\uC804\n"
+                    + "\uCE74\uB4DC\uB97C \uB371\uC73C\uB85C \uB4DC\uB798\uADF8\uD558\uC5EC \uBCF4\uAD00/\uAD50\uCCB4\n"
                     + "? \uBC84\uD2BC\uC73C\uB85C \uBD09\uC785 \uCE74\uB4DC \uD655\uC778\n"
-                    + "덱 카드 클릭으로 자세히 보기",
+                    + "\uB371 \uCE74\uB4DC \uD074\uB9AD\uC73C\uB85C \uC790\uC138\uD788 \uBCF4\uAE30\n"
+                    + "\uD640\uB85C\uADF8\uB7A8 \uCE74\uB4DC\uB294 \uC810\uC218\uC640 \uB371 \uD6A8\uACFC\uAC00 2\uBC30",
                     "Drag pack top to open\n"
                     + "Drag card for next card\n"
                     + "Drag outside to rotate\n"
                     + "Drag card to deck to store/swap\n"
                     + "Use ? to check included cards\n"
-                    + "Click deck card to inspect");
-                DrawStatusLabelWithShadow(new Rect(24f, 180f, 340f, 154f), guide,
+                    + "Click deck card to inspect\n"
+                    + "Holographic cards double score and deck effects");
+                DrawStatusLabelWithShadow(new Rect(24f, 180f, 340f, 180f), guide,
                     controlGuideStyle, Color.white);
             }
             GUI.matrix = previousMatrix;

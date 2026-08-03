@@ -21,10 +21,8 @@ MonoBehaviour:
   Tags:
   - 0
   DeckAbilities:
-  - Trigger: 1
+  - Trigger: 15
     Effect: 0
     Score: 100
     PercentBonus: 0
-    Description: "\uC790\uC2E0\uACFC \uAC19\uC740 \uC0C9\uC758 \uCE74\uB4DC\uAC00 \uB098\uC62C \uC2DC 100\uC810 \uD68D\uB4DD"
-  Number: 1
-  Color: 4
+    ApplicableColors: 05000000

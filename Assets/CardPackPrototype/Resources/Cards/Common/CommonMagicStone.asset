@@ -26,4 +26,3 @@ MonoBehaviour:
     PercentBonus: 10
     NumberMultiplier: 0
     PackCardCount: 0
-    Description: "뽑은 카드에 10% 점수 보너스"

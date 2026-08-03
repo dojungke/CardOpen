@@ -41,8 +41,6 @@ MonoBehaviour:
     PacksToTransform: 1
     GeneratedCardTag: 0
     MaxTriggersPerPack: 0
-    Description: "\uC22B\uC790 2 \uC774\uD558 \uCE74\uB4DC\uB97C \uBF51\uC744 \uC2DC
-      150\uC810 \uD68D\uB4DD"
   - Trigger: 14
     Effect: 0
     Score: 0
@@ -61,5 +59,3 @@ MonoBehaviour:
     PacksToTransform: 1
     GeneratedCardTag: 0
     MaxTriggersPerPack: 0
-    Description: "\uC22B\uC790 2 \uC774\uD558 \uCE74\uB4DC\uB97C \uBF51\uC744 \uC2DC
-      30% \uC810\uC218 \uBCF4\uB108\uC2A4"

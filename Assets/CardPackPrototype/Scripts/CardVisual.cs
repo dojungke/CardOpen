@@ -11,6 +11,7 @@ namespace CardOpen.Prototype
         private const int LatinCardNameCharactersPerLine = 20;
         private const float CardNameMaximumWidth = 1.32f;
         private const float CardNameMaximumHeight = 0.38f;
+        private const float LatinCardNameHorizontalScale = 0.9f;
         private MeshRenderer cardRenderer;
         private Material backMaterial;
         private Material frontMaterial;
@@ -100,6 +101,8 @@ namespace CardOpen.Prototype
             CreateTextLayer("Card Name", displayName, new Vector3(0.20f, 1.39f, -0.0105f),
                 textFont, 64, nameScale, TextAnchor.MiddleCenter, TextAlignment.Center, textColor, 30,
                 CardNameMaximumWidth, CardNameMaximumHeight, isLegendary);
+            SetCardNameHorizontalScale(ContainsWideNameCharacter(cardName)
+                ? 1f : LatinCardNameHorizontalScale);
             CreateDescriptionLayer(description, new Vector3(0f, -0.47f, -0.0108f), textFont, textColor, 31,
                 isLegendary);
             SetFaceUp(true);
@@ -124,6 +127,21 @@ namespace CardOpen.Prototype
                 textMesh.transform.localScale = Vector3.one;
                 FitTextRendererInside(textMesh.transform, textMesh.GetComponent<MeshRenderer>(),
                     CardNameMaximumWidth, CardNameMaximumHeight);
+            }
+            SetCardNameHorizontalScale(ContainsWideNameCharacter(cardName)
+                ? 1f : LatinCardNameHorizontalScale);
+        }
+
+        private void SetCardNameHorizontalScale(float horizontalScale)
+        {
+            TextMesh[] textMeshes = GetComponentsInChildren<TextMesh>(true);
+            for (int i = 0; i < textMeshes.Length; i++)
+            {
+                TextMesh textMesh = textMeshes[i];
+                if (textMesh == null || !textMesh.gameObject.name.StartsWith("Card Name")) continue;
+                Vector3 scale = textMesh.transform.localScale;
+                scale.x *= horizontalScale;
+                textMesh.transform.localScale = scale;
             }
         }
 
@@ -221,8 +239,12 @@ namespace CardOpen.Prototype
                     break;
                 }
             }
+            bool alreadyDescribesNatureTrigger = body.Contains(natureEffect)
+                || (useEnglish
+                    ? body.IndexOf("another Nature card's ability", System.StringComparison.OrdinalIgnoreCase) >= 0
+                    : body.Contains("다른 자연 카드의 능력이 발동"));
             if (data != null && data.HasTag(global::CardTag.Nature)
-                && hasNatureChainTarget && !body.Contains(natureEffect))
+                && hasNatureChainTarget && !alreadyDescribesNatureTrigger)
                 body = string.IsNullOrWhiteSpace(body) ? natureEffect : body + "\n" + natureEffect;
             if (data == null || data.Tags == null || data.Tags.Count == 0)
                 return body;
@@ -232,11 +254,13 @@ namespace CardOpen.Prototype
                 string tagName;
                 switch (data.Tags[i])
                 {
-                    case global::CardTag.Nature: tagName = useEnglish ? "Nature" : "자연"; break;
-
-                    case global::CardTag.Magic: tagName = useEnglish ? "Magic" : "마법"; break;
-                    case global::CardTag.Rune: tagName = useEnglish ? "Rune" : "룬"; break;
-                    case global::CardTag.Weapon: tagName = useEnglish ? "Weapon" : "무기"; break;
+                    case global::CardTag.Nature: tagName = useEnglish ? "Nature" : "\uC790\uC5F0"; break;
+                    case global::CardTag.Magic: tagName = useEnglish ? "Magic" : "\uB9C8\uBC95"; break;
+                    case global::CardTag.Rune: tagName = useEnglish ? "Rune" : "\uB8EC"; break;
+                    case global::CardTag.Weapon: tagName = useEnglish ? "Weapon" : "\uBB34\uAE30"; break;
+                    case global::CardTag.Magitech: tagName = useEnglish ? "Magitech" : "\uB9C8\uACF5\uD559"; break;
+                    case global::CardTag.Warrior: tagName = useEnglish ? "Warrior" : "\uC804\uC0AC"; break;
+                    case global::CardTag.Mage: tagName = useEnglish ? "Mage" : "\uB9C8\uBC95\uC0AC"; break;
                     default: tagName = data.Tags[i].ToString(); break;
                 }
                 if (!tagNames.Contains(tagName)) tagNames.Add(tagName);

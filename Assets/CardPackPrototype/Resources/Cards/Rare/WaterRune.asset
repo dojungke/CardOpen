@@ -31,7 +31,6 @@ MonoBehaviour:
     ApplicableNumbers: []
     ApplicableColors:
     - 1
-    Description: "파란색 카드에 40% 점수 보너스"
   - Trigger: 15
     Effect: 4
     Score: 0
@@ -42,4 +41,3 @@ MonoBehaviour:
     ApplicableNumbers: []
     ApplicableColors:
     - 1
-    Description: "파란색 카드를 뽑을 시 4% 확률로 홀로그램 인챈트"

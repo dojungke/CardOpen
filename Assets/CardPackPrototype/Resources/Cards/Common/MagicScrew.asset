@@ -20,7 +20,8 @@ MonoBehaviour:
   Rare: 0
   Image: {fileID: 2800000, guid: 0d2be49e2077e5d4aa09a7c3d32e07d4, type: 3}
   FitBackgroundImageToWidth: 0
-  Tags: []
+  Tags:
+  - 5
   CanEquipMagic: 0
   CanEquipWeapon: 0
   MaxMergeCount: 4
@@ -44,4 +45,3 @@ MonoBehaviour:
     PacksToTransform: 1
     GeneratedCardTag: 0
     MaxTriggersPerPack: 0
-    Description: "\uCE74\uB4DC\uB97C \uBF51\uC744 \uB54C\uB9C8\uB2E4 20\uC810 \uD68D\uB4DD"

@@ -18,7 +18,8 @@ MonoBehaviour:
   EnglishDescription: "After 5 card packs, grow into Hero. Can equip 1 weapon."
   Rare: 1
   Image: {fileID: 2800000, guid: 562ffafc0a8268b4ba8e37a51efae428, type: 3}
-  Tags: []
+  Tags:
+  - 6
   CanEquipWeapon: 1
   DeckAbilities:
   - Trigger: 0
@@ -39,4 +40,3 @@ MonoBehaviour:
     PacksToTransform: 5
     GeneratedCardTag: 0
     MaxTriggersPerPack: 0
-    Description: "\uCE74\uB4DC\uD329 5\uAC1C \uD6C4\uC5D0 \uC6A9\uC0AC\uB85C \uC131\uC7A5\uD55C\uB2E4"

@@ -22,11 +22,10 @@ MonoBehaviour:
   Tags:
   - 0
   DeckAbilities:
-  - Trigger: 7
+  - Trigger: 15
     Effect: 0
     Score: 200
     PercentBonus: 0
+    ApplicableColors: 0500000002000000
     NumberMultiplier: 0
     PackCardCount: 0
-    Description: "\uC790\uC2E0\uACFC \uAC19\uC740 \uC0C9\uC774\uB098 \uBD89\uC740\uC0C9\uC758
-      \uCE74\uB4DC\uB97C \uBF51\uC73C\uBA74 200\uC810 \uD68D\uB4DD"

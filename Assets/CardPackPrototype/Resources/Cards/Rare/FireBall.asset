@@ -24,7 +24,7 @@ MonoBehaviour:
   Tags:
   - 2
   DeckAbilities:
-  - Trigger: 12
+  - Trigger: 15
     Effect: 13
     Score: 0
     PercentBonus: 30
@@ -32,12 +32,9 @@ MonoBehaviour:
     PackCardCount: 0
     ChancePercent: 0
     ApplicableNumbers: 
-    ApplicableColors: 
+    ApplicableColors: 02000000
     ResetAccumulationAfterPack: 0
     StackThreshold: 1
     DurationDrawCount: 3
     GeneratedCard: {fileID: 0}
     MaxTriggersPerPack: 0
-    Description: "\uBD89\uC740\uC0C9 \uCE74\uB4DC\uB97C \uBF51\uC744 \uC2DC \uB2E4\uC74C
-      3\uBC88\uC758 \uCE74\uB4DC\uB97C \uBF51\uB294 \uB3D9\uC548 30% \uC810\uC218
-      \uBCF4\uB108\uC2A4 \uD68D\uB4DD"

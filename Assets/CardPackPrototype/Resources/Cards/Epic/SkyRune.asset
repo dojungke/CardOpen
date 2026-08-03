@@ -32,8 +32,6 @@ MonoBehaviour:
     ApplicableColors: 0300000004000000
     ResetAccumulationAfterPack: 0
     StackThreshold: 1
-    Description: "\uAC80\uC815\uC0C9 \uB610\uB294 \uD770\uC0C9 \uCE74\uB4DC\uC5D0
-      60% \uC810\uC218 \uBCF4\uB108\uC2A4"
   - Trigger: 15
     Effect: 4
     Score: 0
@@ -45,5 +43,3 @@ MonoBehaviour:
     ApplicableColors: 0400000003000000
     ResetAccumulationAfterPack: 0
     StackThreshold: 1
-    Description: "\uAC80\uC815\uC0C9 \uB610\uB294 \uD770\uC0C9 \uCE74\uB4DC\uB97C
-      \uBF51\uC744 \uC2DC 6% \uD655\uB960\uB85C \uD640\uB85C\uADF8\uB7A8 \uC778\uCC48\uD2B8"

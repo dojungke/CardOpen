@@ -33,4 +33,3 @@ MonoBehaviour:
     NumberMultiplier: 0
     PackCardCount: 0
     ChancePercent: 0
-    Description: "숫자가 짝수인 카드가 나올 시 50점 획득"

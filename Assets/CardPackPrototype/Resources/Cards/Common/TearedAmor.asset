@@ -26,4 +26,3 @@ MonoBehaviour:
     PercentBonus: 0
     NumberMultiplier: 0
     PackCardCount: 0
-    Description: "이번 카드에서 효과가 3개 이상 발동할 시 100점 획득"

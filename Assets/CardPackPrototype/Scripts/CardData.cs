@@ -20,6 +20,16 @@ public enum CardColor
     White
 }
 
+public enum AbilityColor
+{
+    Green = 0,
+    Blue = 1,
+    Red = 2,
+    Black = 3,
+    White = 4,
+    Self = 5
+}
+
 
 
 public enum CardTag
@@ -31,28 +41,26 @@ public enum CardTag
     [InspectorName("룬")]
     Rune = 3,
     [InspectorName("무기")]
-    Weapon = 4
+    Weapon = 4,
+    [InspectorName("마공학")]
+    Magitech = 5,
+    [InspectorName("전사")]
+    Warrior = 6,
+    [InspectorName("마법사")]
+    Mage = 7
 }
 
 public enum DeckAbilityTrigger
 {
-    None,
-    MatchingColor,
-    OddNumber,
-    EvenNumber,
-    DifferentColor,
-    MatchingNumber,
-    EveryCard,
-    MatchingColorOrRed,
-    PreviousCardDifferentColor,
-    NumberAtLeastFour,
-    NumberAtMostThree,
-    TriggeredEffectsAtLeastThree,
-    RedCard,
-    NumberAtMostTwo,
-    IncludedNumbers,
-    IncludedColors,
-    MatchingColorAndNumber
+    None = 0,
+    DifferentColor = 4,
+    MatchingNumber = 5,
+    EveryCard = 6,
+    PreviousCardDifferentColor = 8,
+    TriggeredEffectsAtLeastThree = 11,
+    IncludedNumbers = 14,
+    IncludedColors = 15,
+    MatchingColorAndNumber = 16
 }
 
 public enum DeckAbilityEffect
@@ -95,7 +103,7 @@ public sealed class CardDeckAbility
     [Tooltip("이 능력이 적용되는 카드 숫자 목록")]
     public List<int> ApplicableNumbers = new List<int>();
     [Tooltip("이 능력이 적용되는 카드 색상 목록")]
-    public List<CardColor> ApplicableColors = new List<CardColor>();
+    public List<AbilityColor> ApplicableColors = new List<AbilityColor>();
     public bool ResetAccumulationAfterPack;
     [Min(1)] public int StackThreshold = 1;
     [Min(0)] public int DurationDrawCount;
@@ -107,8 +115,6 @@ public sealed class CardDeckAbility
     [Tooltip("다른 자연 카드의 능력으로는 이 능력을 연쇄 발동하지 않음")]
     [InspectorName("자연 연쇄 발동 제외")]
     public bool ExcludeFromNatureChain;
-    [TextArea(1, 3)] public string Description;
-    [TextArea(1, 3)] public string EnglishDescription;
 
     public bool CanBeTriggeredByNatureChain()
     {

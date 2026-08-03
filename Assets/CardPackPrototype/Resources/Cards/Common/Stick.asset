@@ -31,4 +31,3 @@ MonoBehaviour:
     PercentBonus: 0
     NumberMultiplier: 0
     PackCardCount: 0
-    Description: "카드의 숫자가 3 이하일 시 50점 획득"
