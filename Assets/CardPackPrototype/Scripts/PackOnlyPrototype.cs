@@ -125,6 +125,7 @@ namespace CardOpen.Prototype
         private int natureAbilityChainTriggerCount;
         private readonly List<GameObject> deckVisuals = new List<GameObject>();
         private readonly List<ScorePopup> scorePopups = new List<ScorePopup>();
+        private int scorePopupBatchStartIndex;
         private readonly Dictionary<string, Material> materials = new Dictionary<string, Material>();
         private PackVisual pack;
         private PackTearVisual tearVisual;
@@ -1724,6 +1725,7 @@ namespace CardOpen.Prototype
         private void AwardCurrentCardScore()
         {
             if (cardIndex < 0 || cardIndex >= currentPackCards.Count) return;
+            scorePopupBatchStartIndex = scorePopups.Count;
             StoredCard currentCard = currentPackCards[cardIndex];
             ApplyDeckCardTransformEffects(currentCard);
             int earnedScore;
@@ -1778,6 +1780,8 @@ namespace CardOpen.Prototype
                 {
                     global::CardDeckAbility ability = abilityOwner.Data.DeckAbilities[j];
                     if (ability == null || !IsFlatScoreEffect(ability.Effect)) continue;
+                    if (IsResonatingRuneAbility(abilityOwner, ability,
+                        global::DeckAbilityEffect.AddScore)) continue;
                     if (ability.Effect == global::DeckAbilityEffect.AccumulateFlatScorePerDraw)
                     {
                         if (!abilityOwner.AccumulatedFlatScoreByAbility.TryGetValue(j, out int accumulatedFlatScore)
@@ -1788,6 +1792,43 @@ namespace CardOpen.Prototype
                     }
                     int flatScore = GetFlatDeckAbilityScore(ability, revealedCard);
                     if (flatScore <= 0) continue;
+
+                    if (IsWorldTreeGroupedScoreAbility(abilityOwner, ability))
+                    {
+                        bool hasEarlierWorldTreeScoreAbility = false;
+                        for (int earlierIndex = 0; earlierIndex < j; earlierIndex++)
+                        {
+                            if (IsWorldTreeGroupedScoreAbility(
+                                abilityOwner, abilityOwner.Data.DeckAbilities[earlierIndex]))
+                            {
+                                hasEarlierWorldTreeScoreAbility = true;
+                                break;
+                            }
+                        }
+                        if (hasEarlierWorldTreeScoreAbility) continue;
+
+                        int groupedTriggerCount = 0;
+                        for (int groupedIndex = j;
+                             groupedIndex < abilityOwner.Data.DeckAbilities.Count;
+                             groupedIndex++)
+                        {
+                            global::CardDeckAbility groupedAbility =
+                                abilityOwner.Data.DeckAbilities[groupedIndex];
+                            if (!IsWorldTreeGroupedScoreAbility(abilityOwner, groupedAbility)
+                                || GetFlatDeckAbilityScore(groupedAbility, revealedCard) != flatScore) continue;
+                            groupedTriggerCount += GetDeckAbilityTriggerCount(
+                                groupedAbility, abilityOwner, revealedCard, triggerRequirementCount);
+                        }
+                        if (groupedTriggerCount <= 0) continue;
+
+                        for (int copy = 0; copy < effectiveCopies; copy++)
+                        {
+                            flatAbilityScoreTotal += flatScore * groupedTriggerCount;
+                            AddDeckAbilityPopup(abilityOwner, ability, flatScore, copy,
+                                triggeredCount++, true, groupedTriggerCount, groupedTriggerCount);
+                        }
+                        continue;
+                    }
 
                     if (ability.Effect == global::DeckAbilityEffect.TriggerScoreAtStackThreshold)
                     {
@@ -1815,6 +1856,17 @@ namespace CardOpen.Prototype
                         }
                     }
                 }
+            }
+
+            float runeResonanceFlatScore = GetRuneResonanceValue(revealedCard,
+                global::DeckAbilityEffect.AddScore,
+                out StoredCard runeFlatPopupOwner, out global::CardDeckAbility runeFlatPopupAbility);
+            if (runeResonanceFlatScore > 0f && runeFlatPopupOwner != null)
+            {
+                int resonantFlatScore = Mathf.RoundToInt(runeResonanceFlatScore);
+                flatAbilityScoreTotal += resonantFlatScore;
+                AddDeckAbilityPopup(runeFlatPopupOwner, runeFlatPopupAbility,
+                    resonantFlatScore, 0, triggeredCount++);
             }
 
             int scoreBeforePercentageBonus = baseCardScoreTotal + flatAbilityScoreTotal;
@@ -2504,18 +2556,34 @@ namespace CardOpen.Prototype
             return 1f + addedEfficiency;
         }
 
-        private void AddDeckAbilityPopup(StoredCard owner, global::CardDeckAbility ability, int score,
-            int copyIndex, int triggeredIndex, bool countForOtherCardScoreEvents = true)
+        private static bool IsWorldTreeGroupedScoreAbility(
+            StoredCard owner, global::CardDeckAbility ability)
         {
+            return owner != null && owner.Data != null
+                && owner.Data.name == "WorldTree"
+                && ability != null
+                && ability.Effect == global::DeckAbilityEffect.AddScore;
+        }
+
+        private void AddDeckAbilityPopup(StoredCard owner, global::CardDeckAbility ability, int score,
+            int copyIndex, int triggeredIndex, bool countForOtherCardScoreEvents = true,
+            int popupMultiplier = 1, int otherCardScoreEventCount = 1)
+        {
+            popupMultiplier = Mathf.Max(1, popupMultiplier);
             string ownerReason = (IsNatureChainForcedTrigger(owner, ability)
                     ? Ui("\uC790\uC5F0-", "Nature - ") : string.Empty)
                 + GetStoredCardDisplayName(owner);
             if (copyIndex > 0) ownerReason += Ui(" \uD640\uB85C\uADF8\uB7A8", " Holographic");
-            AddScorePopup(ownerReason + "\n+" + score + Ui("\uC810", " pts"),
+            string multiplierText = popupMultiplier > 1 ? " \u00D7 " + popupMultiplier : string.Empty;
+            AddScorePopup(ownerReason + "\n+" + score + Ui("\uC810", " pts") + multiplierText,
                 copyIndex > 0 ? new Color(0.55f, 0.9f, 1f) : new Color(0.66f, 1f, 0.48f),
-                Time.unscaledTime + triggeredIndex * 0.16f, 1 + triggeredIndex % 4, score);
+                Time.unscaledTime + triggeredIndex * 0.16f, 1 + triggeredIndex % 4,
+                score * popupMultiplier);
             if (countForOtherCardScoreEvents)
-                RegisterOtherCardScoreEvent(owner);
+            {
+                for (int eventIndex = 0; eventIndex < Mathf.Max(1, otherCardScoreEventCount); eventIndex++)
+                    RegisterOtherCardScoreEvent(owner);
+            }
         }
 
         private void RegisterOtherCardScoreEvent(StoredCard scoringOwner)
@@ -2553,22 +2621,39 @@ namespace CardOpen.Prototype
         private void AddScorePopup(string text, Color color, float startTime, int lane, int score)
         {
             const float baseSameLaneSpacing = 1.36f;
-            int burstCount = scorePopups.Count + 1;
+            int batchStartIndex = Mathf.Clamp(scorePopupBatchStartIndex, 0, scorePopups.Count);
+            int burstCount = scorePopups.Count - batchStartIndex + 1;
             float burstSpeed = GetScorePopupBurstPlaybackSpeed(burstCount);
             float audioVolumeScale = GetScorePopupBurstAudioScale(burstCount);
             int normalizedLane = ((lane % ScorePopupTrailCapacity) + ScorePopupTrailCapacity)
                 % ScorePopupTrailCapacity;
-            float scheduledStartTime = startTime;
+            float now = Time.unscaledTime;
+            float requestedDelay = Mathf.Max(0f, startTime - now);
+            float scheduledStartTime = now + requestedDelay / Mathf.Max(1f, burstSpeed);
             for (int i = 0; i < scorePopups.Count; i++)
             {
                 ScorePopup existing = scorePopups[i];
-                existing.PlaybackSpeed = Mathf.Max(existing.PlaybackSpeed, burstSpeed);
-                existing.AudioVolumeScale = Mathf.Min(existing.AudioVolumeScale, audioVolumeScale);
+                if (i >= batchStartIndex)
+                {
+                    int batchOrder = i - batchStartIndex;
+                    float targetSpeed = batchOrder < ScorePopupTrailCapacity
+                        ? Mathf.Min(burstSpeed, 5f)
+                        : burstSpeed;
+                    float previousSpeed = Mathf.Max(1f, existing.PlaybackSpeed);
+                    float visualAge = (now - existing.StartTime) * previousSpeed;
+                    existing.PlaybackSpeed = Mathf.Max(previousSpeed, targetSpeed);
+                    existing.StartTime = now - visualAge / existing.PlaybackSpeed;
+                    existing.AudioVolumeScale = Mathf.Min(existing.AudioVolumeScale, audioVolumeScale);
+                }
                 if (existing.Lane != normalizedLane) continue;
                 float laneSpacing = baseSameLaneSpacing / existing.PlaybackSpeed;
                 scheduledStartTime = Mathf.Max(scheduledStartTime, existing.StartTime + laneSpacing);
             }
 
+            int newBatchOrder = scorePopups.Count - batchStartIndex;
+            float popupSpeed = newBatchOrder < ScorePopupTrailCapacity
+                ? Mathf.Min(burstSpeed, 5f)
+                : burstSpeed;
             scorePopups.Add(new ScorePopup
             {
                 Text = text,
@@ -2576,7 +2661,7 @@ namespace CardOpen.Prototype
                 StartTime = scheduledStartTime,
                 Lane = normalizedLane,
                 Score = Mathf.Max(0, score),
-                PlaybackSpeed = burstSpeed,
+                PlaybackSpeed = popupSpeed,
                 AudioVolumeScale = audioVolumeScale
             });
             pendingScoreCommitTime = Mathf.Max(pendingScoreCommitTime, scheduledStartTime + 0.2f);
@@ -2991,11 +3076,12 @@ namespace CardOpen.Prototype
 
             float total = 0f;
             bool matchesResonanceColor = false;
+            HashSet<global::CardData> countedRuneTypes = new HashSet<global::CardData>();
             for (int i = 0; i < GetAbilityOwnerCount(); i++)
             {
                 StoredCard owner = GetAbilityOwnerAt(i);
-                if (!IsRuneCard(owner) || owner.Data.DeckAbilities == null) continue;
-                int effectiveCopies = GetEffectiveDeckCopyCount(owner);
+                if (!IsRuneCard(owner) || owner.Data.DeckAbilities == null
+                    || !countedRuneTypes.Add(owner.Data)) continue;
                 for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
                 {
                     global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
@@ -3009,9 +3095,7 @@ namespace CardOpen.Prototype
                             popupAbility = ability;
                         }
                     }
-                    total += effect == global::DeckAbilityEffect.AddTriggeredScorePercent
-                        ? ability.PercentBonus * effectiveCopies
-                        : ability.ChancePercent * effectiveCopies;
+                    total += GetRuneAbilityResonanceValue(ability, effect);
                 }
             }
             return matchesResonanceColor ? total : 0f;
@@ -3021,21 +3105,28 @@ namespace CardOpen.Prototype
         {
             if (!IsRuneResonanceActive()) return 0f;
             float total = 0f;
+            HashSet<global::CardData> countedRuneTypes = new HashSet<global::CardData>();
             for (int i = 0; i < GetAbilityOwnerCount(); i++)
             {
                 StoredCard owner = GetAbilityOwnerAt(i);
-                if (!IsRuneCard(owner) || owner.Data.DeckAbilities == null) continue;
-                int effectiveCopies = GetEffectiveDeckCopyCount(owner);
+                if (!IsRuneCard(owner) || owner.Data.DeckAbilities == null
+                    || !countedRuneTypes.Add(owner.Data)) continue;
                 for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
                 {
                     global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
                     if (ability == null || ability.Effect != effect) continue;
-                    total += effect == global::DeckAbilityEffect.AddTriggeredScorePercent
-                        ? ability.PercentBonus * effectiveCopies
-                        : ability.ChancePercent * effectiveCopies;
+                    total += GetRuneAbilityResonanceValue(ability, effect);
                 }
             }
             return total;
+        }
+
+        private static float GetRuneAbilityResonanceValue(global::CardDeckAbility ability,
+            global::DeckAbilityEffect effect)
+        {
+            if (effect == global::DeckAbilityEffect.AddScore) return ability.Score;
+            if (effect == global::DeckAbilityEffect.AddTriggeredScorePercent) return ability.PercentBonus;
+            return ability.ChancePercent;
         }
 
         private string GetStoredCardDisplayDescription(StoredCard card)
@@ -3050,6 +3141,8 @@ namespace CardOpen.Prototype
 
             description = ApplyRuneResonanceIncrease(description, card,
                 global::DeckAbilityEffect.AddTriggeredScorePercent);
+            description = ApplyRuneResonanceIncrease(description, card,
+                global::DeckAbilityEffect.AddScore);
             description = ApplyRuneResonanceIncrease(description, card,
                 global::DeckAbilityEffect.GrantHologramChance);
             return description;
@@ -3100,17 +3193,17 @@ namespace CardOpen.Prototype
             {
                 global::CardDeckAbility ability = card.Data.DeckAbilities[i];
                 if (ability == null || ability.Effect != effect) continue;
-                float baseValue = effect == global::DeckAbilityEffect.AddTriggeredScorePercent
-                    ? ability.PercentBonus : ability.ChancePercent;
+                float baseValue = GetRuneAbilityResonanceValue(ability, effect);
                 if (baseValue <= 0f) continue;
                 float totalValue = GetRuneResonanceTotalValue(effect);
                 float increase = Mathf.Max(0f, totalValue - baseValue);
                 if (increase <= 0f) return description;
-                string baseText = baseValue.ToString("0.#") + "%";
-                int percentIndex = description.IndexOf(baseText);
-                if (percentIndex < 0) return description;
-                string increaseText = "(+" + increase.ToString("0.#") + "%)";
-                return description.Insert(percentIndex + baseText.Length, increaseText);
+                string unit = effect == global::DeckAbilityEffect.AddScore ? Ui("점", " pts") : "%";
+                string baseText = baseValue.ToString("0.#") + unit;
+                int valueIndex = description.IndexOf(baseText);
+                if (valueIndex < 0) return description;
+                string increaseText = "(+" + increase.ToString("0.#") + unit + ")";
+                return description.Insert(valueIndex + baseText.Length, increaseText);
             }
             return description;
         }

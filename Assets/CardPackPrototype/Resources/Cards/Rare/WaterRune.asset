@@ -12,32 +12,85 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9ceccc00981a4a44bb12cdaa8339d16c, type: 3}
   m_Name: WaterRune
   m_EditorClassIdentifier: Assembly-CSharp::CardData
-  Name: 물룬
-  Description: "파란색 카드에 40% 점수 보너스\n파란색 카드를 뽑으면 4% 확률로 홀로그램 부여\n다른 종류의 룬을 획득하면 공명"
-  EnglishName: "Water Rune"
-  EnglishDescription: "Blue cards gain a 40% score bonus.\nWhen a blue card is drawn, it has a 4% chance to become Holographic.\nResonates when you obtain a different type of Rune."
+  Name: "\uBB3C\uB8EC"
+  Description: "\uD30C\uB780\uC0C9 \uCE74\uB4DC\uC5D0 40% \uC810\uC218 \uBCF4\uB108\uC2A4\n\uD30C\uB780\uC0C9
+    \uCE74\uB4DC\uB97C \uBF51\uC73C\uBA74 200\uC810 \uD68D\uB4DD\n\uD30C\uB780\uC0C9
+    \uCE74\uB4DC\uB97C \uBF51\uC73C\uBA74 4% \uD655\uB960\uB85C \uD640\uB85C\uADF8\uB7A8
+    \uBD80\uC5EC\n\uB2E4\uB978 \uC885\uB958\uC758 \uB8EC\uC744 \uD68D\uB4DD\uD558\uBA74
+    \uACF5\uBA85"
+  EnglishName: Water Rune
+  EnglishDescription: 'Blue cards gain a 40% score bonus.
+
+    Gain 200 pts when
+    a blue card is drawn.
+
+    When a blue card is drawn, it has a 4% chance to become
+    Holographic.
+
+    Resonates when you obtain a different type of Rune.'
   Rare: 2
   Image: {fileID: 2800000, guid: 26eaa5d279fa7ee4384a5164bd3bb3b4, type: 3}
-  Tags:
-  - 3
+  FitBackgroundImageToWidth: 0
+  Tags: 03000000
+  CanEquipMagic: 0
+  CanEquipWeapon: 0
+  MaxMergeCount: 1
+  UnlimitedMergeCount: 0
   DeckAbilities:
   - Trigger: 15
     Effect: 1
     Score: 0
     PercentBonus: 40
+    MaximumPercent: 0
     NumberMultiplier: 0
     PackCardCount: 0
     ChancePercent: 0
-    ApplicableNumbers: []
-    ApplicableColors:
-    - 1
+    ApplicableNumbers: 
+    ApplicableColors: 01000000
+    ResetAccumulationAfterPack: 0
+    StackThreshold: 1
+    DurationDrawCount: 0
+    GeneratedCard: {fileID: 0}
+    TransformedCard: {fileID: 0}
+    PacksToTransform: 1
+    GeneratedCardTag: 0
+    MaxTriggersPerPack: 0
+    ExcludeFromNatureChain: 0
   - Trigger: 15
     Effect: 4
     Score: 0
     PercentBonus: 0
+    MaximumPercent: 0
     NumberMultiplier: 0
     PackCardCount: 0
     ChancePercent: 4
-    ApplicableNumbers: []
-    ApplicableColors:
-    - 1
+    ApplicableNumbers: 
+    ApplicableColors: 01000000
+    ResetAccumulationAfterPack: 0
+    StackThreshold: 1
+    DurationDrawCount: 0
+    GeneratedCard: {fileID: 0}
+    TransformedCard: {fileID: 0}
+    PacksToTransform: 1
+    GeneratedCardTag: 0
+    MaxTriggersPerPack: 0
+    ExcludeFromNatureChain: 0
+  - Trigger: 15
+    Effect: 0
+    Score: 200
+    PercentBonus: 0
+    MaximumPercent: 0
+    NumberMultiplier: 0
+    PackCardCount: 0
+    ChancePercent: 0
+    ApplicableNumbers: 
+    ApplicableColors: 01000000
+    ResetAccumulationAfterPack: 0
+    StackThreshold: 1
+    DurationDrawCount: 0
+    GeneratedCard: {fileID: 0}
+    TransformedCard: {fileID: 0}
+    PacksToTransform: 1
+    GeneratedCardTag: 0
+    MaxTriggersPerPack: 0
+    ExcludeFromNatureChain: 0

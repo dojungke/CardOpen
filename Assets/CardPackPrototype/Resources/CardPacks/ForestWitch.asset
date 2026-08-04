@@ -59,7 +59,7 @@ MonoBehaviour:
   - Card: {fileID: 11400000, guid: f9f94611b9737234e8f9d3e0d1b5fc00, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 0.75
+    InclusionRate: 0.5
   - Card: {fileID: 11400000, guid: f7357f111de65e24fa66726ed5f9f429, type: 2}
     Number: 1
     Color: 0
@@ -79,7 +79,7 @@ MonoBehaviour:
   - Card: {fileID: 11400000, guid: 7e4ca90c248182444ab2d032f0e7d568, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 0.75
+    InclusionRate: 0.5
   - Card: {fileID: 11400000, guid: eaeab28b638bcb640bb91e1e2deb36d0, type: 2}
     Number: 1
     Color: 0
@@ -119,12 +119,16 @@ MonoBehaviour:
   - Card: {fileID: 11400000, guid: 88ecf8c3463aa6f4baaf6d52cab8ec08, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 0.75
+    InclusionRate: 0.5
   - Card: {fileID: 11400000, guid: 615637c2722757c4493b5dc998dcb99c, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 0.75
+    InclusionRate: 0.5
   - Card: {fileID: 11400000, guid: 45933344158043ef8fc652603068e159, type: 2}
     Number: 1
     Color: 0
     InclusionRate: 0.3
+  - Card: {fileID: 11400000, guid: b65ccc41ca685d64a964e7092050c6a3, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.5
