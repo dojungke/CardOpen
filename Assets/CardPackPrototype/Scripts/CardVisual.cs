@@ -27,6 +27,11 @@ namespace CardOpen.Prototype
         public bool IsHolographic { get; private set; }
         public bool IsFaceUp { get; private set; }
 
+        static CardVisual()
+        {
+            Font.textureRebuilt += HandleFontTextureRebuilt;
+        }
+
         public void Build(CardData data, Material rarityMaterial, Material cardBackMaterial, Material unusedFaceMaterial, Material unusedFamilyMaterial, Font unusedFont)
         {
             GameObject cardMesh = new GameObject("Single Rounded Card Mesh");
@@ -122,10 +127,13 @@ namespace CardOpen.Prototype
             {
                 TextMesh textMesh = textMeshes[i];
                 if (textMesh == null || !textMesh.gameObject.name.StartsWith("Card Name")) continue;
+                PrepareLegacyTextCharacters(textMesh.font, displayName, textMesh.fontSize);
                 textMesh.text = displayName;
                 textMesh.characterSize = characterSize;
                 textMesh.transform.localScale = Vector3.one;
-                FitTextRendererInside(textMesh.transform, textMesh.GetComponent<MeshRenderer>(),
+                MeshRenderer renderer = textMesh.GetComponent<MeshRenderer>();
+                renderer.sharedMaterial = GetWorldTextMaterial(textMesh.font);
+                FitTextRendererInside(textMesh.transform, renderer,
                     CardNameMaximumWidth, CardNameMaximumHeight);
             }
             SetCardNameHorizontalScale(ContainsWideNameCharacter(cardName)
@@ -219,7 +227,7 @@ namespace CardOpen.Prototype
                 if (textMesh == null || !textMesh.gameObject.name.StartsWith("Card Description")) continue;
                 PrepareTmpCharacters(textMesh.font, displayDescription);
                 textMesh.text = displayDescription;
-                textMesh.ForceMeshUpdate();
+                textMesh.ForceMeshUpdate(true, true);
             }
         }
 
@@ -331,6 +339,8 @@ namespace CardOpen.Prototype
             if (WorldTextMaterials.TryGetValue(font, out Material cached))
             {
                 cached.mainTexture = font.material.mainTexture;
+                if (cached.HasProperty("_MainTex"))
+                    cached.SetTexture("_MainTex", font.material.mainTexture);
                 return cached;
             }
 
@@ -344,11 +354,29 @@ namespace CardOpen.Prototype
             WorldTextMaterials.Add(font, material);
             return material;
         }
+        private static void PrepareLegacyTextCharacters(Font font, string value, int fontSize)
+        {
+            if (font == null || string.IsNullOrEmpty(value)) return;
+            font.RequestCharactersInTexture(value, fontSize, FontStyle.Bold);
+            HandleFontTextureRebuilt(font);
+        }
+
+        private static void HandleFontTextureRebuilt(Font rebuiltFont)
+        {
+            if (rebuiltFont == null
+                || !WorldTextMaterials.TryGetValue(rebuiltFont, out Material material)
+                || material == null) return;
+            Texture atlasTexture = rebuiltFont.material.mainTexture;
+            material.mainTexture = atlasTexture;
+            if (material.HasProperty("_MainTex")) material.SetTexture("_MainTex", atlasTexture);
+        }
+
         private void CreateTextLayer(string layerName, string value, Vector3 position, Font font, int fontSize,
             float characterSize, TextAnchor anchor, TextAlignment alignment, Color color, int sortingOrder,
             float maximumWidth = 0f, float maximumHeight = 0f, bool addOutline = false)
         {
             if (font == null || string.IsNullOrEmpty(value)) return;
+            PrepareLegacyTextCharacters(font, value, fontSize);
             if (addOutline)
                 CreateTextOutlineLayers(layerName, value, position, font, fontSize, characterSize,
                     anchor, alignment, sortingOrder, maximumWidth, maximumHeight);
@@ -508,7 +536,7 @@ namespace CardOpen.Prototype
             textMesh.richText = false;
             textMesh.extraPadding = true;
             textMesh.outlineWidth = 0f;
-            textMesh.ForceMeshUpdate();
+            textMesh.ForceMeshUpdate(true, true);
             if (addOutline)
                 CreateDescriptionOutlineLayers(textObject, position, sortingOrder);
 
@@ -542,7 +570,7 @@ namespace CardOpen.Prototype
                     + new Vector3(offsets[i].x, offsets[i].y, 0.0008f);
                 outlineTransform.localRotation = Quaternion.identity;
                 outlineTransform.localScale = Vector3.one;
-                outlineText.ForceMeshUpdate();
+                outlineText.ForceMeshUpdate(true, true);
                 MeshRenderer outlineRenderer = outlineObject.GetComponent<MeshRenderer>();
                 outlineRenderer.sortingOrder = sortingOrder - 1;
                 faceLayerRenderers.Add(outlineRenderer);

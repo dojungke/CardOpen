@@ -622,7 +622,7 @@ namespace CardOpen.Prototype
                         cards[i].transform.localScale = Vector3.one * CurrentRevealedCardScale;
             }
             if (packContentsPreviewVisual != null)
-                packContentsPreviewVisual.transform.localScale = Vector3.one * CurrentRevealedCardScale;
+                LayoutPackContentsPreviewCard();
             if (deckRoot != null) LayoutDeckVisuals();
         }
 
@@ -770,6 +770,15 @@ namespace CardOpen.Prototype
             sharedPackPreviewActive = true;
             sharedResultMode = false;
             shareFeedback = null;
+            totalScore = 0;
+            roundScore = 0;
+            pendingScore = 0;
+            pendingScoreCommitTime = -1f;
+            scoreTransferAmount = 0;
+            scoreTransferApplied = 0;
+            scoreTransferStartTime = -1f;
+            scorePopups.Clear();
+            currentPackOpenedForGoal = false;
             previousRevealedCard = null;
             pendingPackOpenNatureSources.Clear();
             ClearNatureAbilityChain();
@@ -4573,6 +4582,11 @@ namespace CardOpen.Prototype
             string scoreText = Ui("\uCD1D\uC810  ", "Total  ") + totalScore.ToString("N0");
             if (pendingScore > 0) scoreText += "  + " + pendingScore.ToString("N0");
             GUI.Label(UiRect(new Rect(24f, 18f, 440f, 48f), new Rect(24f, 0f, 440f, 48f)), scoreText, scoreStyle);
+            if (sharedPackPreviewActive)
+            {
+                GUI.matrix = previousMatrix;
+                return;
+            }
             int goalIndex = Mathf.Clamp(currentGoalIndex, 0, GoalScores.Length - 1);
             bool runEnded = phase == RevealPhase.GameOver || phase == RevealPhase.RunCleared;
             int openedPacksInGoal = completedPacks % PacksPerGoal + (currentPackOpenedForGoal ? 1 : 0);
@@ -4853,10 +4867,27 @@ namespace CardOpen.Prototype
             visual.BuildFromData(data, previewColor, attributeMaterial,
                 GetTextureMaterial("CardBack", "CardAssets/Attributes/AttributeBackRemasterPurple", false),
                 rarityPatternMaterial, illustrationMaterial, costMaterial, font, IsEnglishUi);
-            visual.PrepareFaceUp(new Vector3(0f, 0.92f, -0.24f), CurrentRevealedCardScale, 0f);
+            visual.PrepareFaceUp(Vector3.zero, CurrentRevealedCardScale, 0f);
             visual.SetFaceDetailsVisible(true);
             SetStoredVisualShadowMode(cardObject);
             packContentsPreviewVisual = visual;
+            LayoutPackContentsPreviewCard();
+        }
+
+        private void LayoutPackContentsPreviewCard()
+        {
+            if (packContentsPreviewVisual == null) return;
+            Camera camera = Camera.main;
+            if (camera == null) return;
+
+            GetUiLayout(out float uiScale, out float offsetX, out float offsetY);
+            float referenceCenterY = IsPortraitUi ? 624f : 351f;
+            float screenX = offsetX + UiReferenceWidth * 0.5f * uiScale;
+            float screenY = Screen.height - (offsetY + referenceCenterY * uiScale);
+            float depth = camera.WorldToScreenPoint(new Vector3(0f, 0.92f, -0.24f)).z;
+            packContentsPreviewVisual.transform.position =
+                camera.ScreenToWorldPoint(new Vector3(screenX, screenY, depth));
+            packContentsPreviewVisual.transform.localScale = Vector3.one * CurrentRevealedCardScale;
         }
 
         private void ClearPackContentsPreview()
@@ -4895,10 +4926,15 @@ namespace CardOpen.Prototype
             }
 
             int count = GetPackContentsCardCount();
+            int cardsPerPack = inspectedPackChoice != null
+                ? Mathf.Max(1, inspectedPackChoice.CardsPerPack) : 0;
             Matrix4x4 previousMatrix = GUI.matrix;
             GUI.matrix = Matrix4x4.TRS(new Vector3(offsetX, offsetY, 0f), Quaternion.identity,
                 new Vector3(scale, scale, 1f));
-            GUI.Label(UiRect(new Rect(390f, 28f, 500f, 52f), new Rect(110f, 28f, 500f, 52f)), Ui("\uBD09\uC785 \uCE74\uB4DC", "Included cards"), packContentsTitleStyle);
+            string packContentsTitle = Ui("봉입 카드 (" + cardsPerPack + "장입)",
+                "Included cards (" + cardsPerPack + (cardsPerPack == 1 ? " card)" : " cards)"));
+            GUI.Label(UiRect(new Rect(390f, 28f, 500f, 52f), new Rect(110f, 28f, 500f, 52f)),
+                packContentsTitle, packContentsTitleStyle);
             if (GUI.Button(UiRect(new Rect(1060f, 28f, 170f, 52f), new Rect(522f, 95f, 170f, 52f)), Ui("\uB2EB\uAE30", "Close"), discardButtonStyle))
             {
                 GUI.matrix = previousMatrix;
