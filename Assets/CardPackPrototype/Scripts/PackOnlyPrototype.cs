@@ -865,7 +865,7 @@ namespace CardOpen.Prototype
                 "CardAssets/Attributes/Attribute" + attributeKey, false);
             Material rarityPatternMaterial = GetTextureMaterial("Pattern_" + data.RarityAssetKey,
                 "CardAssets/Rarities/Pattern" + data.RarityAssetKey, true, 0);
-            string costAsset = card.Number == 6 ? "CostSigma" : "Cost" + card.Number;
+            string costAsset = "Cost" + card.Number;
             Material costMaterial = GetTextureMaterial("Cost_" + card.Number,
                 "CardAssets/Costs/" + costAsset, true, 20);
             Material illustrationMaterial = GetTextureMaterial("CardImage_" + data.GetHashCode(), data.Image, true, 10);
@@ -972,7 +972,7 @@ namespace CardOpen.Prototype
                     "CardAssets/Attributes/Attribute" + entry.AttributeAssetKey, false);
                 Material rarityPatternMaterial = GetTextureMaterial("Pattern_" + data.RarityAssetKey,
                     "CardAssets/Rarities/Pattern" + data.RarityAssetKey, true, 0);
-                string costAsset = entry.DisplayNumber == 6 ? "CostSigma" : "Cost" + entry.DisplayNumber;
+                string costAsset = "Cost" + entry.DisplayNumber;
                 Material costMaterial = GetTextureMaterial("Cost_" + entry.DisplayNumber,
                     "CardAssets/Costs/" + costAsset, true, 20);
                 Material illustrationMaterial = GetTextureMaterial("CardImage_" + data.GetHashCode(), data.Image, true, 10);
@@ -2373,7 +2373,7 @@ namespace CardOpen.Prototype
                 "CardAssets/Attributes/Attribute" + entry.AttributeAssetKey, false);
             Material rarityPatternMaterial = GetTextureMaterial("Pattern_" + data.RarityAssetKey,
                 "CardAssets/Rarities/Pattern" + data.RarityAssetKey, true, 0);
-            string costAsset = entry.DisplayNumber == 6 ? "CostSigma" : "Cost" + entry.DisplayNumber;
+            string costAsset = "Cost" + entry.DisplayNumber;
             Material costMaterial = GetTextureMaterial("Cost_" + entry.DisplayNumber,
                 "CardAssets/Costs/" + costAsset, true, 20);
             Material illustrationMaterial = GetTextureMaterial("CardImage_" + data.GetHashCode(), data.Image, true, 10);

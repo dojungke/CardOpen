@@ -110,7 +110,7 @@ public sealed class CardCaptureWindow : EditorWindow
                 Resources.Load<Texture2D>("CardAssets/Attributes/AttributeBackRemasterPurple"), false, 0, ownedMaterials);
             Material rarityMaterial = CreateTextureMaterial(
                 Resources.Load<Texture2D>("CardAssets/Rarities/Pattern" + card.RarityAssetKey), true, 0, ownedMaterials);
-            string costAsset = number == 6 ? "CostSigma" : "Cost" + number;
+            string costAsset = "Cost" + number;
             Material costMaterial = CreateTextureMaterial(
                 Resources.Load<Texture2D>("CardAssets/Costs/" + costAsset), true, 20, ownedMaterials);
             Material illustrationMaterial = CreateTextureMaterial(card.Image, true, 10, ownedMaterials);
