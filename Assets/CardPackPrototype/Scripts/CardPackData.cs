@@ -102,6 +102,24 @@ public class CardPackData : ScriptableObject
         };
     }
 
+    public CardPackEntry DrawRandomCardAtLeast(CardRarity minimumRarity)
+    {
+        if (IncludeCards == null || IncludeCards.Count == 0) return null;
+
+        CardPackEntry selected = UseRarityRates
+            ? DrawByMinimumRarityRate(minimumRarity)
+            : DrawByMinimumRarityEntryRate(minimumRarity);
+        if (selected == null) return null;
+        if (!RandomizeNumberAndColor) return selected;
+        return new CardPackEntry
+        {
+            Card = selected.Card,
+            Number = UnityEngine.Random.Range(1, 7),
+            Color = (CardColor)UnityEngine.Random.Range(0, 5),
+            InclusionRate = selected.InclusionRate
+        };
+    }
+
     public CardPackEntry DrawRandomCard(CardTag tag)
     {
         if (IncludeCards == null || IncludeCards.Count == 0) return null;
@@ -160,6 +178,53 @@ public class CardPackData : ScriptableObject
         else if (roll < common + uncommon + rare + epic) rarity = CardRarity.Epic;
         else rarity = CardRarity.Legendary;
         return DrawByEntryRate(rarity);
+    }
+
+    private CardPackEntry DrawByMinimumRarityRate(CardRarity minimumRarity)
+    {
+        float totalRate = 0f;
+        for (int rarityIndex = (int)minimumRarity; rarityIndex <= (int)CardRarity.Legendary; rarityIndex++)
+        {
+            CardRarity rarity = (CardRarity)rarityIndex;
+            if (HasCards(rarity)) totalRate += GetRarityRate(rarity);
+        }
+        if (totalRate <= 0f) return null;
+
+        float roll = UnityEngine.Random.value * totalRate;
+        float accumulated = 0f;
+        for (int rarityIndex = (int)minimumRarity; rarityIndex <= (int)CardRarity.Legendary; rarityIndex++)
+        {
+            CardRarity rarity = (CardRarity)rarityIndex;
+            if (!HasCards(rarity)) continue;
+            accumulated += GetRarityRate(rarity);
+            if (roll <= accumulated) return DrawByEntryRate(rarity);
+        }
+        return null;
+    }
+
+    private CardPackEntry DrawByMinimumRarityEntryRate(CardRarity minimumRarity)
+    {
+        float totalRate = 0f;
+        for (int i = 0; i < IncludeCards.Count; i++)
+        {
+            CardPackEntry entry = IncludeCards[i];
+            if (entry != null && entry.Card != null && entry.InclusionRate > 0f
+                && (int)entry.Card.Rare >= (int)minimumRarity)
+                totalRate += entry.InclusionRate;
+        }
+        if (totalRate <= 0f) return null;
+
+        float roll = UnityEngine.Random.value * totalRate;
+        float accumulated = 0f;
+        for (int i = 0; i < IncludeCards.Count; i++)
+        {
+            CardPackEntry entry = IncludeCards[i];
+            if (entry == null || entry.Card == null || entry.InclusionRate <= 0f
+                || (int)entry.Card.Rare < (int)minimumRarity) continue;
+            accumulated += entry.InclusionRate;
+            if (roll <= accumulated) return entry;
+        }
+        return null;
     }
 
     private bool HasCards(CardRarity rarity)

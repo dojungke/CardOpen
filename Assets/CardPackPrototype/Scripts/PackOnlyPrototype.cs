@@ -948,7 +948,10 @@ namespace CardOpen.Prototype
             int cardCount = baseCardCount + GetAdditionalNextPackCardCount();
             for (int i = 0; i < cardCount; i++)
             {
-                global::CardPackEntry entry = DrawCard();
+                global::CardPackEntry entry = i == 4 && activePackData != null
+                    ? activePackData.DrawRandomCardAtLeast(global::CardRarity.Rare)
+                    : null;
+                if (entry == null) entry = DrawCard();
                 if (entry == null || entry.Card == null) continue;
                 global::CardData data = entry.Card;
 
