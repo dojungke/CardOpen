@@ -2723,7 +2723,7 @@ namespace CardOpen.Prototype
             cardRarityAudioSource.playOnAwake = false;
             cardRarityAudioSource.loop = false;
             cardRarityAudioSource.spatialBlend = 0f;
-            cardRarityAudioSource.volume = 0.46f;
+            cardRarityAudioSource.volume = 0.62f;
 
             const int sampleRate = 44100;
             float[] rootFrequencies = { 392f, 440f, 587.33f, 783.99f, 987.77f };
@@ -2790,7 +2790,7 @@ namespace CardOpen.Prototype
             packTearAudioSource.playOnAwake = false;
             packTearAudioSource.loop = false;
             packTearAudioSource.spatialBlend = 0f;
-            packTearAudioSource.volume = 0.48f;
+            packTearAudioSource.volume = 0.65f;
 
             const int sampleRate = 44100;
             const float duration = 0.26f;
@@ -2837,7 +2837,7 @@ namespace CardOpen.Prototype
             scorePopupAudioSource.playOnAwake = false;
             scorePopupAudioSource.loop = false;
             scorePopupAudioSource.spatialBlend = 0f;
-            scorePopupAudioSource.volume = 0.40f;
+            scorePopupAudioSource.volume = 0.54f;
 
             const int sampleRate = 44100;
             const float duration = 0.38f;
@@ -2872,7 +2872,7 @@ namespace CardOpen.Prototype
             abilityEffectAudioSource.playOnAwake = false;
             abilityEffectAudioSource.loop = false;
             abilityEffectAudioSource.spatialBlend = 0f;
-            abilityEffectAudioSource.volume = 0.48f;
+            abilityEffectAudioSource.volume = 0.65f;
 
             const int sampleRate = 44100;
             const float equipDuration = 0.34f;
