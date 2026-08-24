@@ -2837,7 +2837,7 @@ namespace CardOpen.Prototype
             scorePopupAudioSource.playOnAwake = false;
             scorePopupAudioSource.loop = false;
             scorePopupAudioSource.spatialBlend = 0f;
-            scorePopupAudioSource.volume = 0.28f;
+            scorePopupAudioSource.volume = 0.40f;
 
             const int sampleRate = 44100;
             const float duration = 0.38f;

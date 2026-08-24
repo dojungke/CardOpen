@@ -24,7 +24,7 @@ MonoBehaviour:
   LegendaryRate: 20
   RandomizeNumberAndColor: 1
   IncludeCards:
-  - Card: {fileID: 11400000, guid: d2d56321b96f0a6409422db15f7173c1, type: 2}
+  - Card: {fileID: 11400000, guid: 3f7e1c0a9bdb4d9ca1c0a7256cbf82b1, type: 2}
     Number: 1
     Color: 0
     InclusionRate: 20
