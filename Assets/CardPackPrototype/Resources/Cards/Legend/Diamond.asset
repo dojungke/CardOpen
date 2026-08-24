@@ -1,0 +1,84 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ceccc00981a4a44bb12cdaa8339d16c, type: 3}
+  m_Name: Diamond
+  m_EditorClassIdentifier: Assembly-CSharp::CardData
+  Name: "다이아몬드"
+  Description: "뽑힐 때 5,000점 획득\n500% 점수 보너스 제공\n덱의 카드 1장에 홀로그램 부여"
+  EnglishName: "Diamond"
+  EnglishDescription: "Gain 5,000 points when drawn.\nGain a 500% score bonus when drawn.\nEnchant 1 card in the deck with Holographic."
+  Rare: 4
+  Image: {fileID: 2800000, guid: 27bcefb683da4f2a914c3cd9837e41d6, type: 3}
+  FitBackgroundImageToWidth: 1
+  Tags: 09000000
+  CanEquipMagic: 0
+  CanEquipWeapon: 0
+  MaxMergeCount: 1
+  UnlimitedMergeCount: 0
+  DeckAbilities:
+  - Trigger: 17
+    Effect: 0
+    Score: 5000
+    PercentBonus: 0
+    MaximumPercent: 0
+    NumberMultiplier: 0
+    PackCardCount: 0
+    ChancePercent: 0
+    ApplicableNumbers: []
+    ApplicableColors: []
+    ResetAccumulationAfterPack: 0
+    StackThreshold: 1
+    DurationDrawCount: 0
+    GeneratedCard: {fileID: 0}
+    TransformedCard: {fileID: 0}
+    PacksToTransform: 1
+    GeneratedCardTag: 0
+    MaxTriggersPerPack: 0
+    ExcludeFromNatureChain: 0
+  - Trigger: 17
+    Effect: 1
+    Score: 0
+    PercentBonus: 500
+    MaximumPercent: 0
+    NumberMultiplier: 0
+    PackCardCount: 0
+    ChancePercent: 0
+    ApplicableNumbers: []
+    ApplicableColors: []
+    ResetAccumulationAfterPack: 0
+    StackThreshold: 1
+    DurationDrawCount: 0
+    GeneratedCard: {fileID: 0}
+    TransformedCard: {fileID: 0}
+    PacksToTransform: 1
+    GeneratedCardTag: 0
+    MaxTriggersPerPack: 0
+    ExcludeFromNatureChain: 0
+  - Trigger: 17
+    Effect: 25
+    Score: 0
+    PercentBonus: 0
+    MaximumPercent: 0
+    NumberMultiplier: 0
+    PackCardCount: 0
+    ChancePercent: 0
+    ApplicableNumbers: []
+    ApplicableColors: []
+    ResetAccumulationAfterPack: 0
+    StackThreshold: 1
+    DurationDrawCount: 0
+    GeneratedCard: {fileID: 0}
+    TransformedCard: {fileID: 0}
+    PacksToTransform: 1
+    GeneratedCardTag: 0
+    MaxTriggersPerPack: 0
+    ExcludeFromNatureChain: 0

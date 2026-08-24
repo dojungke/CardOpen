@@ -23,8 +23,4 @@ MonoBehaviour:
   EpicRate: 20
   LegendaryRate: 20
   RandomizeNumberAndColor: 1
-  IncludeCards:
-  - Card: {fileID: 11400000, guid: 3f7e1c0a9bdb4d9ca1c0a7256cbf82b1, type: 2}
-    Number: 1
-    Color: 0
-    InclusionRate: 20
+  IncludeCards: []

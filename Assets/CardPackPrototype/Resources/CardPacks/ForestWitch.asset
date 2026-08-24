@@ -27,39 +27,39 @@ MonoBehaviour:
   - Card: {fileID: 11400000, guid: 69c4d742cb4757e44a74ee8c12b42052, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 7.5
+    InclusionRate: 6.6666665
   - Card: {fileID: 11400000, guid: ef6ca115568185347bdc08fad8eb5f22, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 7.5
+    InclusionRate: 6.6666665
+  - Card: {fileID: 11400000, guid: 0a67ed72c6ac4bb986ac3db1de508c31, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 6.6666665
   - Card: {fileID: 11400000, guid: 869ac0c016ab7ab4f946be7361441b66, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 7.5
+    InclusionRate: 6.6666665
   - Card: {fileID: 11400000, guid: d791c143f7f1fba4da23dfcef1ea0a81, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 7.5
+    InclusionRate: 6.6666665
   - Card: {fileID: 11400000, guid: c158d2f66fdd13a49b7a28986cb95467, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 7.5
+    InclusionRate: 6.6666665
   - Card: {fileID: 11400000, guid: 65740ba620b3c654594f2b1be83086fd, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 7.5
+    InclusionRate: 6.6666665
   - Card: {fileID: 11400000, guid: ffc8137ea9edb964fabde2799ed6c4db, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 7.5
+    InclusionRate: 6.6666665
   - Card: {fileID: 11400000, guid: 778ad2bf82b5047469e2235680399147, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 7.5
-  - Card: {fileID: 11400000, guid: f9f94611b9737234e8f9d3e0d1b5fc00, type: 2}
-    Number: 1
-    Color: 0
-    InclusionRate: 0.5
+    InclusionRate: 6.6666665
   - Card: {fileID: 11400000, guid: f7357f111de65e24fa66726ed5f9f429, type: 2}
     Number: 1
     Color: 0
@@ -76,10 +76,6 @@ MonoBehaviour:
     Number: 1
     Color: 0
     InclusionRate: 2.9666667
-  - Card: {fileID: 11400000, guid: 7e4ca90c248182444ab2d032f0e7d568, type: 2}
-    Number: 1
-    Color: 0
-    InclusionRate: 0.5
   - Card: {fileID: 11400000, guid: eaeab28b638bcb640bb91e1e2deb36d0, type: 2}
     Number: 1
     Color: 0
@@ -100,35 +96,51 @@ MonoBehaviour:
     Number: 1
     Color: 0
     InclusionRate: 2.9666667
+  - Card: {fileID: 11400000, guid: a221c4cb69694bd3b89b7f1968583cf7, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 2
   - Card: {fileID: 11400000, guid: bc09e2d654f7c70458762ead3884a111, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 2.5
+    InclusionRate: 2
   - Card: {fileID: 11400000, guid: 6a82e8f0d73b8794fa949d11f3b2d863, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 2.5
+    InclusionRate: 2
   - Card: {fileID: 11400000, guid: f3cc4e646f864f141a5460fb73da6b27, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 2.5
+    InclusionRate: 2
   - Card: {fileID: 11400000, guid: b38787f1e40c46c48ae62354b40cc6b2, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 2.5
+    InclusionRate: 2
   - Card: {fileID: 11400000, guid: 88ecf8c3463aa6f4baaf6d52cab8ec08, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 0.5
-  - Card: {fileID: 11400000, guid: 615637c2722757c4493b5dc998dcb99c, type: 2}
-    Number: 1
-    Color: 0
-    InclusionRate: 0.5
-  - Card: {fileID: 11400000, guid: 45933344158043ef8fc652603068e159, type: 2}
-    Number: 1
-    Color: 0
-    InclusionRate: 0.3
+    InclusionRate: 0.6
   - Card: {fileID: 11400000, guid: b65ccc41ca685d64a964e7092050c6a3, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 0.5
+    InclusionRate: 0.6
+  - Card: {fileID: 11400000, guid: f9f94611b9737234e8f9d3e0d1b5fc00, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.6
+  - Card: {fileID: 11400000, guid: 615637c2722757c4493b5dc998dcb99c, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.6
+  - Card: {fileID: 11400000, guid: 7e4ca90c248182444ab2d032f0e7d568, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.6
+  - Card: {fileID: 11400000, guid: b5d2f820df1240f6926c83184b097a51, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.15
+  - Card: {fileID: 11400000, guid: 45933344158043ef8fc652603068e159, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.15

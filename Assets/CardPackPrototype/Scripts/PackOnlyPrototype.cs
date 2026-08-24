@@ -10,7 +10,7 @@ using Random = UnityEngine.Random;
 
 namespace CardOpen.Prototype
 {
-    public sealed class PackOnlyPrototype : MonoBehaviour
+    public sealed partial class PackOnlyPrototype : MonoBehaviour
     {
         private sealed class ScorePopup
         {
@@ -119,6 +119,7 @@ namespace CardOpen.Prototype
         private readonly List<StoredCard> currentPackCards = new List<StoredCard>();
         private readonly List<StoredCard> deckCards = new List<StoredCard>();
         private StoredCard previousRevealedCard;
+        private StoredCard revealedMineralAbilityOwner;
         private readonly Dictionary<StoredCard, int> naturallyTriggeredNatureCounts = new Dictionary<StoredCard, int>();
         private readonly HashSet<StoredCard> pendingPackOpenNatureSources = new HashSet<StoredCard>();
         private bool natureAbilityChainActive;
@@ -343,8 +344,8 @@ namespace CardOpen.Prototype
                 Deck = new SharedCardData[deckCards.Count]
             };
             for (int i = 0; i < deckCards.Count; i++) result.Deck[i] = CaptureSharedCard(deckCards[i]);
-            string payload = EncodeSharedResult(JsonUtility.ToJson(result));
-            return baseUrl + "?cardopenResult=" + Uri.EscapeDataString(payload);
+            string payload = EncodeSharedResultBinary(result);
+            return baseUrl + "?r=" + payload;
         }
 
         private static string EncodeSharedResult(string json)
@@ -448,12 +449,23 @@ namespace CardOpen.Prototype
 
         private bool TryLoadSharedResultFromUrl()
         {
-            string payload = GetQueryValue(Application.absoluteURL, "cardopenResult");
-            if (string.IsNullOrEmpty(payload)) return false;
+            string compactPayload = GetQueryValue(Application.absoluteURL, "r");
+            string legacyPayload = GetQueryValue(Application.absoluteURL, "cardopenResult");
+            if (string.IsNullOrEmpty(compactPayload) && string.IsNullOrEmpty(legacyPayload)) return false;
             try
             {
-                string json = DecodeSharedResult(payload);
-                SharedResultData result = JsonUtility.FromJson<SharedResultData>(json);
+                SharedResultData result;
+                string json;
+                if (!string.IsNullOrEmpty(compactPayload))
+                {
+                    result = DecodeSharedResultBinary(compactPayload);
+                    json = JsonUtility.ToJson(result);
+                }
+                else
+                {
+                    json = DecodeSharedResult(legacyPayload);
+                    result = JsonUtility.FromJson<SharedResultData>(json);
+                }
                 if (result == null || result.Version != 1) return false;
                 sharedResultSnapshotJson = json;
                 RestoreSharedResult(result);
@@ -703,6 +715,7 @@ namespace CardOpen.Prototype
                 ReturnToSharedResultAfterPackPreview();
                 return;
             }
+            ResetPerPackAccumulatedBonuses();
             AdvanceDeckTransformationsAfterPack();
             completedPacks++;
             if (completedPacks % PacksPerGoal == 0)
@@ -956,12 +969,15 @@ namespace CardOpen.Prototype
         {
             int baseCardCount = activePackData != null ? activePackData.CardsPerPack : FallbackCardsPerPack;
             int cardCount = baseCardCount + GetAdditionalNextPackCardCount();
+            bool replaceWithMinerals = ShouldReplaceCurrentPackWithMinedMinerals();
             for (int i = 0; i < cardCount; i++)
             {
-                global::CardPackEntry entry = i == 4 && activePackData != null
-                    ? activePackData.DrawRandomCardAtLeast(global::CardRarity.Rare)
-                    : null;
-                if (entry == null) entry = DrawCard();
+                global::CardPackEntry entry = replaceWithMinerals
+                    ? DrawMinedMineralCard()
+                    : i == 4 && activePackData != null
+                        ? activePackData.DrawRandomCardAtLeast(global::CardRarity.Rare)
+                        : null;
+                if (entry == null && !replaceWithMinerals) entry = DrawCard();
                 if (entry == null || entry.Card == null) continue;
                 global::CardData data = entry.Card;
 
@@ -1770,9 +1786,13 @@ namespace CardOpen.Prototype
 
         private void TriggerDeckAbilities(StoredCard revealedCard, int baseCardScoreTotal)
         {
+            revealedMineralAbilityOwner = revealedCard != null && revealedCard.Data != null
+                && revealedCard.Data.HasTag(global::CardTag.Mineral) ? revealedCard : null;
+            TriggerRevealedMineralEnchantments(revealedCard);
             PrepareNatureAbilityChain(revealedCard);
             TriggerPackCardGenerationAbilities(revealedCard);
             PrepareStackBonusTriggers(revealedCard);
+            TriggerStackSharingAbilities();
             TriggerStackCardGenerationAbilities();
             AccumulatePerPackEffects(revealedCard);
             int triggerRequirementCount = CountTriggeredDeckEffects(revealedCard);
@@ -1799,8 +1819,30 @@ namespace CardOpen.Prototype
                         AddDeckAbilityPopup(abilityOwner, ability, accumulatedFlatScore, 0, triggeredCount++);
                         continue;
                     }
+                    if (ability.Effect == global::DeckAbilityEffect.AddScorePerDecayingStack)
+                    {
+                        for (int copy = 0; copy < effectiveCopies; copy++)
+                        {
+                            abilityOwner.StackByAbilityCopy.TryGetValue(
+                                GetAbilityCopyKey(j, copy), out int currentStacks);
+                            int stackScore = Mathf.Max(0, currentStacks * ability.Score);
+                            if (stackScore <= 0) continue;
+                            flatAbilityScoreTotal += stackScore;
+                            AddDeckAbilityPopup(abilityOwner, ability, stackScore, copy, triggeredCount++);
+                        }
+                        continue;
+                    }
                     int flatScore = GetFlatDeckAbilityScore(ability, revealedCard);
                     if (flatScore <= 0) continue;
+
+                    if (IsMergedMeteorScoreAbility(abilityOwner, ability) && effectiveCopies > 1)
+                    {
+                        int mergedMeteorScore = flatScore * effectiveCopies;
+                        flatAbilityScoreTotal += mergedMeteorScore;
+                        AddDeckAbilityPopup(abilityOwner, ability, mergedMeteorScore, 0,
+                            triggeredCount++, true, 1, effectiveCopies);
+                        continue;
+                    }
 
                     if (IsWorldTreeGroupedScoreAbility(abilityOwner, ability))
                     {
@@ -1839,7 +1881,8 @@ namespace CardOpen.Prototype
                         continue;
                     }
 
-                    if (ability.Effect == global::DeckAbilityEffect.TriggerScoreAtStackThreshold)
+                    if (ability.Effect == global::DeckAbilityEffect.TriggerScoreAtStackThreshold
+                        || ability.Effect == global::DeckAbilityEffect.TriggerScoreAndPercentAtStackThresholdEveryDraw)
                     {
                         for (int copy = 0; copy < effectiveCopies; copy++)
                         {
@@ -1892,6 +1935,23 @@ namespace CardOpen.Prototype
                     if (IsResonatingRuneAbility(abilityOwner, ability,
                         global::DeckAbilityEffect.AddTriggeredScorePercent)) continue;
 
+                    if (ability.Effect == global::DeckAbilityEffect.AddScorePercentPerPackStack)
+                    {
+                        if (ability.PercentBonus <= 0f
+                            || !DoesDeckAbilityTrigger(ability, abilityOwner, revealedCard,
+                                triggerRequirementCount)) continue;
+                        for (int copy = 0; copy < effectiveCopies; copy++)
+                        {
+                            abilityOwner.StackByAbilityCopy.TryGetValue(
+                                GetAbilityCopyKey(j, copy), out int currentStacks);
+                            int stackBonusScore = Mathf.RoundToInt(scoreBeforePercentageBonus
+                                * currentStacks * ability.PercentBonus * 0.01f * scoreBonusEfficiency);
+                            if (stackBonusScore <= 0) continue;
+                            AddDeckAbilityPopup(abilityOwner, ability, stackBonusScore, copy,
+                                triggeredCount++);
+                        }
+                        continue;
+                    }
                     if (ability.Effect == global::DeckAbilityEffect.GrantTemporaryPercentForNextDraws)
                     {
                         if (!abilityOwner.RemainingDrawsByAbility.TryGetValue(j, out int remainingDraws)
@@ -1908,7 +1968,8 @@ namespace CardOpen.Prototype
                     }
 
                     if (ability.Effect == global::DeckAbilityEffect.TriggerPercentAtStackThreshold
-                        || ability.Effect == global::DeckAbilityEffect.TriggerPercentEveryDrawCount)
+                        || ability.Effect == global::DeckAbilityEffect.TriggerPercentEveryDrawCount
+                        || ability.Effect == global::DeckAbilityEffect.TriggerScoreAndPercentAtStackThresholdEveryDraw)
                     {
                         if (ability.PercentBonus <= 0f) continue;
                         int stackBonusScore = Mathf.RoundToInt(
@@ -1958,6 +2019,53 @@ namespace CardOpen.Prototype
             }
             ActivateTemporaryDrawBonuses(revealedCard);
             ClearNatureAbilityChain();
+            revealedMineralAbilityOwner = null;
+        }
+
+        private void TriggerRevealedMineralEnchantments(StoredCard revealedCard)
+        {
+            if (revealedCard == null || revealedCard.Data == null
+                || !revealedCard.Data.HasTag(global::CardTag.Mineral)
+                || revealedCard.Data.DeckAbilities == null) return;
+            bool enchantedAny = false;
+            for (int abilityIndex = 0; abilityIndex < revealedCard.Data.DeckAbilities.Count; abilityIndex++)
+            {
+                global::CardDeckAbility ability = revealedCard.Data.DeckAbilities[abilityIndex];
+                if (ability == null
+                    || ability.Effect != global::DeckAbilityEffect.EnchantRandomDeckCardHolographic) continue;
+                int triggerCount = GetEffectiveDeckCopyCount(revealedCard);
+                for (int trigger = 0; trigger < triggerCount; trigger++)
+                {
+                    List<int> candidates = new List<int>();
+                    for (int i = 0; i < deckCards.Count; i++)
+                    {
+                        StoredCard candidate = deckCards[i];
+                        if (candidate == null) continue;
+                        int physicalCopies = Mathf.Max(1, candidate.CombinedCopies);
+                        if (GetCombinedHolographicCopyCount(candidate) < physicalCopies)
+                            candidates.Add(i);
+                    }
+                    if (candidates.Count == 0) break;
+                    int targetIndex = candidates[Random.Range(0, candidates.Count)];
+                    StoredCard target = deckCards[targetIndex];
+                    int enchantedCopies = GetCombinedHolographicCopyCount(target) + 1;
+                    target.CombinedHolographicCopies = Mathf.Clamp(
+                        enchantedCopies, 0, Mathf.Max(1, target.CombinedCopies));
+                    target.IsHolographic = target.CombinedHolographicCopies > 0;
+                    if (targetIndex < deckVisuals.Count && deckVisuals[targetIndex] != null)
+                    {
+                        CardVisual visual = deckVisuals[targetIndex].GetComponent<CardVisual>();
+                        if (visual != null) visual.EnableHologram();
+                    }
+                    enchantedAny = true;
+                }
+            }
+            if (enchantedAny)
+            {
+                PlayMagicEquipSound();
+                RefreshDeckCardDisplayNames();
+                LayoutDeckVisuals();
+            }
         }
 
         private void PrepareNatureAbilityChain(StoredCard revealedCard)
@@ -1984,11 +2092,14 @@ namespace CardOpen.Prototype
                     {
                         global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
                         if (!IsNatureChainEligibleAbility(ability)) continue;
-                        int naturalTriggerCount = GetNormalDeckAbilityTriggerCount(
-                            ability, owner, revealedCard);
+                        int naturalTriggerCount;
+                        if (ability.Effect == global::DeckAbilityEffect.GrantStackToOtherStackCardsAtThreshold)
+                            naturalTriggerCount = GetProjectedStackTriggerCount(owner, j, revealedCard);
+                        else
+                            naturalTriggerCount = GetEffectiveDeckCopyCount(owner)
+                                * GetNormalDeckAbilityTriggerCount(ability, owner, revealedCard);
                         if (naturalTriggerCount <= 0) continue;
-                        AddNaturallyTriggeredNatureCount(owner,
-                            GetEffectiveDeckCopyCount(owner) * naturalTriggerCount);
+                        AddNaturallyTriggeredNatureCount(owner, naturalTriggerCount);
                     }
                 }
             }
@@ -2111,6 +2222,26 @@ namespace CardOpen.Prototype
                             count += effectiveCopies;
                         continue;
                     }
+                    if (ability.Effect == global::DeckAbilityEffect.AddScorePercentPerPackStack)
+                    {
+                        for (int copy = 0; copy < effectiveCopies; copy++)
+                        {
+                            owner.StackByAbilityCopy.TryGetValue(
+                                GetAbilityCopyKey(j, copy), out int currentStacks);
+                            if (currentStacks > 0 && ability.PercentBonus > 0f) count++;
+                        }
+                        continue;
+                    }
+                    if (ability.Effect == global::DeckAbilityEffect.AddScorePerDecayingStack)
+                    {
+                        for (int copy = 0; copy < effectiveCopies; copy++)
+                        {
+                            owner.StackByAbilityCopy.TryGetValue(
+                                GetAbilityCopyKey(j, copy), out int currentStacks);
+                            if (currentStacks > 0 && ability.Score > 0) count++;
+                        }
+                        continue;
+                    }
                     bool hasScoreValue = IsFlatScoreEffect(ability.Effect)
                         ? GetFlatDeckAbilityScore(ability, revealedCard) > 0
                         : (ability.Effect == global::DeckAbilityEffect.AddTriggeredScorePercent
@@ -2126,6 +2257,7 @@ namespace CardOpen.Prototype
 
         private void PrepareStackBonusTriggers(StoredCard revealedCard)
         {
+            int sharedStackGain = GetSharedStackTagGainPerDraw();
             for (int i = 0; i < GetAbilityOwnerCount(); i++)
             {
                 StoredCard owner = GetAbilityOwnerAt(i);
@@ -2136,14 +2268,51 @@ namespace CardOpen.Prototype
                 for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
                 {
                     global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
+                    if (ability != null
+                        && ability.Effect == global::DeckAbilityEffect.AddScorePercentPerPackStack
+                        && DoesDeckAbilityTrigger(ability, owner, revealedCard))
+                    {
+                        int perPackStackGain = Mathf.Max(0,
+                            revealedCard.Number * ability.NumberMultiplier);
+                        if (owner.Data.HasTag(global::CardTag.Stack))
+                            perPackStackGain += sharedStackGain;
+                        for (int copy = 0; copy < effectiveCopies; copy++)
+                        {
+                            int stackKey = GetAbilityCopyKey(j, copy);
+                            owner.StackByAbilityCopy.TryGetValue(stackKey, out int currentStacks);
+                            owner.StackByAbilityCopy[stackKey] = currentStacks + perPackStackGain;
+                        }
+                        continue;
+                    }
+                    if (ability != null
+                        && ability.Effect == global::DeckAbilityEffect.AddScorePerDecayingStack
+                        && DoesDeckAbilityTrigger(ability, owner, revealedCard))
+                    {
+                        int decayingStackGain = Mathf.Max(0,
+                            revealedCard.Number * ability.NumberMultiplier);
+                        if (owner.Data.HasTag(global::CardTag.Stack))
+                            decayingStackGain += sharedStackGain;
+                        for (int copy = 0; copy < effectiveCopies; copy++)
+                        {
+                            int stackKey = GetAbilityCopyKey(j, copy);
+                            owner.StackByAbilityCopy.TryGetValue(stackKey, out int currentStacks);
+                            owner.StackByAbilityCopy[stackKey] = currentStacks / 2 + decayingStackGain;
+                        }
+                        continue;
+                    }
                     bool countsDraws = ability != null
-                        && ability.Effect == global::DeckAbilityEffect.TriggerPercentEveryDrawCount;
+                        && (ability.Effect == global::DeckAbilityEffect.TriggerPercentEveryDrawCount
+                            || ability.Effect == global::DeckAbilityEffect.TriggerScoreAndPercentAtStackThresholdEveryDraw);
+                    bool gainsSharedStacks = owner.Data.HasTag(global::CardTag.Stack)
+                        && sharedStackGain > 0;
                     if (ability == null || !IsStackThresholdEffect(ability.Effect)
-                        || ability.StackThreshold <= 0 || (!countsDraws && ability.NumberMultiplier <= 0)
+                        || ability.StackThreshold <= 0
+                        || (!countsDraws && ability.NumberMultiplier <= 0 && !gainsSharedStacks)
                         || !DoesDeckAbilityTrigger(ability, owner, revealedCard)) continue;
                     int gainedStacks = countsDraws
-                        ? 1
+                        ? Mathf.Max(1, ability.NumberMultiplier)
                         : Mathf.Max(0, revealedCard.Number * ability.NumberMultiplier);
+                    if (gainsSharedStacks) gainedStacks += sharedStackGain;
                     int preparedTriggerCount = 0;
                     owner.PerPackTriggerCountByAbility.TryGetValue(j, out int usedThisPack);
                     for (int copy = 0; copy < effectiveCopies; copy++)
@@ -2172,6 +2341,117 @@ namespace CardOpen.Prototype
                 }
             }
         }
+        private int GetProjectedStackTriggerCount(StoredCard owner, int abilityIndex,
+            StoredCard revealedCard)
+        {
+            if (owner == null || owner.Data == null || owner.Data.DeckAbilities == null
+                || abilityIndex < 0 || abilityIndex >= owner.Data.DeckAbilities.Count
+                || revealedCard == null) return 0;
+            global::CardDeckAbility ability = owner.Data.DeckAbilities[abilityIndex];
+            if (ability == null || ability.StackThreshold <= 0) return 0;
+            int gainedStacks = Mathf.Max(0, revealedCard.Number * ability.NumberMultiplier);
+            if (owner.Data.HasTag(global::CardTag.Stack))
+                gainedStacks += GetSharedStackTagGainPerDraw();
+            int triggerCount = 0;
+            int effectiveCopies = GetEffectiveDeckCopyCount(owner);
+            for (int copy = 0; copy < effectiveCopies; copy++)
+            {
+                owner.StackByAbilityCopy.TryGetValue(
+                    GetAbilityCopyKey(abilityIndex, copy), out int currentStacks);
+                triggerCount += (currentStacks + gainedStacks) / ability.StackThreshold;
+            }
+            return triggerCount;
+        }
+
+        private void TriggerStackSharingAbilities()
+        {
+            int stackGrantCount = 0;
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
+            {
+                StoredCard source = GetAbilityOwnerAt(i);
+                if (source == null || source.Data == null || source.Data.DeckAbilities == null) continue;
+                int effectiveCopies = GetEffectiveDeckCopyCount(source);
+                for (int abilityIndex = 0; abilityIndex < source.Data.DeckAbilities.Count; abilityIndex++)
+                {
+                    global::CardDeckAbility ability = source.Data.DeckAbilities[abilityIndex];
+                    if (ability == null
+                        || ability.Effect != global::DeckAbilityEffect.GrantStackToOtherStackCardsAtThreshold)
+                        continue;
+                    for (int copy = 0; copy < effectiveCopies; copy++)
+                        stackGrantCount += GetStackTriggerCount(source, abilityIndex, copy);
+                    if (IsNatureChainForcedTrigger(source, ability))
+                        stackGrantCount += Mathf.Max(0, natureAbilityChainTriggerCount
+                            - GetNaturallyTriggeredNatureCount(source));
+                }
+            }
+            if (stackGrantCount <= 0) return;
+
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
+            {
+                StoredCard target = GetAbilityOwnerAt(i);
+                if (target == null || target.Data == null || target.Data.DeckAbilities == null
+                    || target.Data.name == "FlowerSpirit"
+                    || !target.Data.HasTag(global::CardTag.Stack)) continue;
+                int effectiveCopies = GetEffectiveDeckCopyCount(target);
+                for (int abilityIndex = 0; abilityIndex < target.Data.DeckAbilities.Count; abilityIndex++)
+                {
+                    global::CardDeckAbility ability = target.Data.DeckAbilities[abilityIndex];
+                    if (ability == null) continue;
+                    bool storesRawStacks = ability.Effect == global::DeckAbilityEffect.AddScorePerDecayingStack
+                        || ability.Effect == global::DeckAbilityEffect.AddScorePercentPerPackStack;
+                    if (!storesRawStacks && (!IsStackThresholdEffect(ability.Effect)
+                        || ability.StackThreshold <= 0)) continue;
+                    target.PerPackTriggerCountByAbility.TryGetValue(abilityIndex, out int usedThisPack);
+                    int preparedTriggerCount = 0;
+                    for (int copy = 0; copy < effectiveCopies; copy++)
+                    {
+                        int stackKey = GetAbilityCopyKey(abilityIndex, copy);
+                        target.StackByAbilityCopy.TryGetValue(stackKey, out int currentStacks);
+                        if (storesRawStacks)
+                        {
+                            target.StackByAbilityCopy[stackKey] = currentStacks + stackGrantCount;
+                            continue;
+                        }
+
+                        int nextStacks = currentStacks + stackGrantCount;
+                        int triggerCount = nextStacks / ability.StackThreshold;
+                        if (ability.Effect == global::DeckAbilityEffect.AddSpecificCardAtStackThreshold
+                            && ability.MaxTriggersPerPack > 0)
+                        {
+                            target.TriggeredStackCountsThisDraw.TryGetValue(stackKey,
+                                out int alreadyPreparedTriggers);
+                            int availableTriggers = Mathf.Max(0, ability.MaxTriggersPerPack
+                                - usedThisPack - preparedTriggerCount - alreadyPreparedTriggers);
+                            triggerCount = Mathf.Min(triggerCount, availableTriggers);
+                            target.StackByAbilityCopy[stackKey] = nextStacks
+                                - triggerCount * ability.StackThreshold;
+                        }
+                        else
+                        {
+                            target.StackByAbilityCopy[stackKey] = nextStacks % ability.StackThreshold;
+                        }
+                        if (triggerCount <= 0) continue;
+                        target.TriggeredStackCountsThisDraw.TryGetValue(stackKey,
+                            out int existingTriggerCount);
+                        target.TriggeredStackCountsThisDraw[stackKey] = existingTriggerCount + triggerCount;
+                        preparedTriggerCount += triggerCount;
+                    }
+                }
+            }
+        }
+        private int GetSharedStackTagGainPerDraw()
+        {
+            int stackCardCopies = 0;
+            for (int i = 0; i < GetAbilityOwnerCount(); i++)
+            {
+                StoredCard owner = GetAbilityOwnerAt(i);
+                if (owner == null || owner.Data == null
+                    || !owner.Data.HasTag(global::CardTag.Stack)) continue;
+                stackCardCopies += GetEffectiveDeckCopyCount(owner);
+            }
+            return stackCardCopies;
+        }
+
         private void AccumulatePerPackEffects(StoredCard revealedCard)
         {
             for (int i = 0; i < GetAbilityOwnerCount(); i++)
@@ -2210,7 +2490,10 @@ namespace CardOpen.Prototype
                 || effect == global::DeckAbilityEffect.TriggerScoreAtStackThreshold
                 || effect == global::DeckAbilityEffect.AccumulatePercentAtStackThreshold
                 || effect == global::DeckAbilityEffect.AddSpecificCardAtStackThreshold
-                || effect == global::DeckAbilityEffect.TriggerPercentEveryDrawCount;
+                || effect == global::DeckAbilityEffect.TriggerPercentEveryDrawCount
+                || effect == global::DeckAbilityEffect.TriggerScoreAndPercentAtStackThresholdEveryDraw
+                || effect == global::DeckAbilityEffect.GrantStackToOtherStackCardsAtThreshold
+                || effect == global::DeckAbilityEffect.AddMinedMineralCardAtDrawThreshold;
         }
 
         private static int GetStackTriggerCount(StoredCard owner, int abilityIndex, int copyIndex)
@@ -2260,7 +2543,9 @@ namespace CardOpen.Prototype
             return effect == global::DeckAbilityEffect.AddScore
                 || effect == global::DeckAbilityEffect.AddRevealedNumberTimesScore
                 || effect == global::DeckAbilityEffect.TriggerScoreAtStackThreshold
-                || effect == global::DeckAbilityEffect.AccumulateFlatScorePerDraw;
+                || effect == global::DeckAbilityEffect.AccumulateFlatScorePerDraw
+                || effect == global::DeckAbilityEffect.AddScorePerDecayingStack
+                || effect == global::DeckAbilityEffect.TriggerScoreAndPercentAtStackThresholdEveryDraw;
         }
 
         private static int GetFlatDeckAbilityScore(global::CardDeckAbility ability, StoredCard revealedCard)
@@ -2291,8 +2576,36 @@ namespace CardOpen.Prototype
                 for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
                 {
                     global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
-                    if (ability == null || ability.Effect != global::DeckAbilityEffect.AddRandomCommonCardToPackEnd
-                        || !DoesDeckAbilityTrigger(ability, owner, revealedCard)) continue;
+                    if (ability == null || !DoesDeckAbilityTrigger(ability, owner, revealedCard)) continue;
+                    if (ability.Effect == global::DeckAbilityEffect.AddMinedMineralCardToPackEnd)
+                    {
+                        owner.PerPackTriggerCountByAbility.TryGetValue(j, out int usedThisPack);
+                        int maximumTriggers = ability.MaxTriggersPerPack > 0
+                            ? ability.MaxTriggersPerPack * effectiveCopies : int.MaxValue;
+                        for (int copy = 0; copy < effectiveCopies && usedThisPack < maximumTriggers; copy++)
+                        {
+                            if (!AppendMinedMineralCardToCurrentPack()) break;
+                            usedThisPack++;
+                        }
+                        owner.PerPackTriggerCountByAbility[j] = usedThisPack;
+                        continue;
+                    }
+                    if (ability.Effect == global::DeckAbilityEffect.AddMinedMineralCardAtDrawThreshold)
+                    {
+                        int threshold = Mathf.Max(1, ability.StackThreshold);
+                        for (int copy = 0; copy < effectiveCopies; copy++)
+                        {
+                            int abilityCopyKey = GetAbilityCopyKey(j, copy);
+                            owner.StackByAbilityCopy.TryGetValue(abilityCopyKey, out int currentCount);
+                            currentCount++;
+                            int generatedCount = currentCount / threshold;
+                            owner.StackByAbilityCopy[abilityCopyKey] = currentCount % threshold;
+                            for (int generated = 0; generated < generatedCount; generated++)
+                                AppendMinedMineralCardToCurrentPack();
+                        }
+                        continue;
+                    }
+                    if (ability.Effect != global::DeckAbilityEffect.AddRandomCommonCardToPackEnd) continue;
                     for (int copy = 0; copy < effectiveCopies; copy++)
                     {
                         int usageKey = GetAbilityCopyKey(j, copy);
@@ -2339,6 +2652,77 @@ namespace CardOpen.Prototype
         {
             global::CardPackEntry entry = DrawCommonCard();
             return AppendCardToCurrentPack(entry);
+        }
+
+        private bool AppendMinedMineralCardToCurrentPack()
+        {
+            return AppendCardToCurrentPack(DrawMinedMineralCard());
+        }
+
+        private global::CardPackEntry DrawMinedMineralCard()
+        {
+            int miningCount = Mathf.Clamp(GetMiningCardCount(), 1, 5);
+            float roll = Random.value * 100f;
+            string resourcePath;
+            if (miningCount == 1)
+                resourcePath = roll < 70f ? "Cards/Common/Stone"
+                    : roll < 90f ? "Cards/Uncommon/Copper" : "Cards/Rare/Iron";
+            else if (miningCount == 2)
+                resourcePath = roll < 60f ? "Cards/Common/Stone"
+                    : roll < 85f ? "Cards/Uncommon/Copper"
+                    : roll < 95f ? "Cards/Rare/Iron" : "Cards/Epic/Gold";
+            else if (miningCount == 3)
+                resourcePath = roll < 30f ? "Cards/Common/Stone"
+                    : roll < 60f ? "Cards/Uncommon/Copper"
+                    : roll < 80f ? "Cards/Rare/Iron"
+                    : roll < 99f ? "Cards/Epic/Gold" : "Cards/Legend/Diamond";
+            else if (miningCount == 4)
+                resourcePath = roll < 10f ? "Cards/Common/Stone"
+                    : roll < 40f ? "Cards/Uncommon/Copper"
+                    : roll < 70f ? "Cards/Rare/Iron"
+                    : roll < 95f ? "Cards/Epic/Gold" : "Cards/Legend/Diamond";
+            else
+                resourcePath = roll < 20f ? "Cards/Uncommon/Copper"
+                    : roll < 50f ? "Cards/Rare/Iron"
+                    : roll < 90f ? "Cards/Epic/Gold" : "Cards/Legend/Diamond";
+            global::CardData data = Resources.Load<global::CardData>(resourcePath);
+            if (data == null) return null;
+            return new global::CardPackEntry
+            {
+                Card = data,
+                Number = Random.Range(1, 7),
+                Color = (global::CardColor)Random.Range(0, 5),
+                InclusionRate = 100f
+            };
+        }
+
+        private bool ShouldReplaceCurrentPackWithMinedMinerals()
+        {
+            int leftmostIndex = GetDeckIndexAtSlot(0);
+            if (leftmostIndex < 0 || leftmostIndex >= deckCards.Count) return false;
+            StoredCard leftmostCard = deckCards[leftmostIndex];
+            if (leftmostCard == null || leftmostCard.Data == null
+                || leftmostCard.Data.DeckAbilities == null) return false;
+            for (int i = 0; i < leftmostCard.Data.DeckAbilities.Count; i++)
+            {
+                global::CardDeckAbility ability = leftmostCard.Data.DeckAbilities[i];
+                if (ability != null && ability.Effect ==
+                    global::DeckAbilityEffect.ReplaceNextPackWithMinedMineralsWhenLeftmost)
+                    return true;
+            }
+            return false;
+        }
+
+        private int GetMiningCardCount()
+        {
+            int count = 0;
+            for (int i = 0; i < deckCards.Count; i++)
+            {
+                StoredCard card = deckCards[i];
+                if (card != null && card.Data != null && card.Data.HasTag(global::CardTag.Mining))
+                    count += GetEffectiveDeckCopyCount(card);
+            }
+            return count;
         }
 
         private bool AppendRandomTaggedCardToCurrentPack(global::CardTag tag)
@@ -2437,6 +2821,7 @@ namespace CardOpen.Prototype
             {
                 StoredCard owner = GetAbilityOwnerAt(i);
                 if (owner == null || owner.Data == null || owner.Data.DeckAbilities == null) continue;
+                int effectiveCopies = GetEffectiveDeckCopyCount(owner);
                 for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
                 {
                     global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
@@ -2447,6 +2832,9 @@ namespace CardOpen.Prototype
                         owner.AccumulatedPercentByAbility.Remove(j);
                     if (ability.Effect == global::DeckAbilityEffect.AccumulateFlatScorePerDraw)
                         owner.AccumulatedFlatScoreByAbility.Remove(j);
+                    if (ability.Effect == global::DeckAbilityEffect.AddScorePercentPerPackStack)
+                        for (int copy = 0; copy < effectiveCopies; copy++)
+                            owner.StackByAbilityCopy.Remove(GetAbilityCopyKey(j, copy));
                 }
             }
         }
@@ -2491,6 +2879,14 @@ namespace CardOpen.Prototype
                         for (int copy = 0; copy < effectiveCopies; copy++)
                             for (int generated = 0; generated < cardsPerCopy; generated++)
                                 AppendRandomTaggedCardToCurrentPack(ability.GeneratedCardTag);
+                        continue;
+                    }
+                    if (ability.Effect == global::DeckAbilityEffect.AddMinedMineralCardOnPackOpen)
+                    {
+                        int cardsPerCopy = Mathf.Max(1, ability.PackCardCount);
+                        for (int copy = 0; copy < effectiveCopies; copy++)
+                            for (int generated = 0; generated < cardsPerCopy; generated++)
+                                AppendMinedMineralCardToCurrentPack();
                         continue;
                     }
                     if (ability.Effect != global::DeckAbilityEffect.AddScoreOnPackOpen
@@ -2574,6 +2970,14 @@ namespace CardOpen.Prototype
                 && ability.Effect == global::DeckAbilityEffect.AddScore;
         }
 
+        private static bool IsMergedMeteorScoreAbility(
+            StoredCard owner, global::CardDeckAbility ability)
+        {
+            return owner != null && owner.Data != null
+                && owner.Data.name == "Comet"
+                && ability != null
+                && ability.Effect == global::DeckAbilityEffect.AddScore;
+        }
         private void AddDeckAbilityPopup(StoredCard owner, global::CardDeckAbility ability, int score,
             int copyIndex, int triggeredIndex, bool countForOtherCardScoreEvents = true,
             int popupMultiplier = 1, int otherCardScoreEventCount = 1)
@@ -3002,7 +3406,7 @@ namespace CardOpen.Prototype
                 for (int j = 0; j < deckCards[i].InheritedRelics.Count; j++)
                     if (deckCards[i].InheritedRelics[j] != null) count++;
             }
-            return count;
+            return count + (revealedMineralAbilityOwner != null ? 1 : 0);
         }
 
         private StoredCard GetAbilityOwnerAt(int index)
@@ -3032,6 +3436,7 @@ namespace CardOpen.Prototype
                     index--;
                 }
             }
+            if (index == 0 && revealedMineralAbilityOwner != null) return revealedMineralAbilityOwner;
             return null;
         }
 
@@ -3349,8 +3754,12 @@ namespace CardOpen.Prototype
 
         private bool DoesDeckAbilityTriggerNormally(global::CardDeckAbility ability, StoredCard owner, StoredCard revealedCard, int triggeredEffectCount = 0)
         {
+            if (owner != null && owner.Data != null && owner.Data.HasTag(global::CardTag.Mineral)
+                && !object.ReferenceEquals(owner, revealedCard)) return false;
             switch (ability.Trigger)
             {
+                case global::DeckAbilityTrigger.WhenDrawn:
+                    return object.ReferenceEquals(owner, revealedCard);
                 case global::DeckAbilityTrigger.IncludedNumbers:
                     return ability.ApplicableNumbers != null
                         && ability.ApplicableNumbers.Contains(revealedCard.Number);
@@ -5197,6 +5606,20 @@ namespace CardOpen.Prototype
                         card.PerPackTriggerCountByAbility.TryGetValue(i, out int usedThisPack);
                         statusLines.Add(usedThisPack + Ui("\uD68C", " uses"));
                     }
+                }
+                if (ability.Effect == global::DeckAbilityEffect.AddScorePercentPerPackStack)
+                {
+                    card.StackByAbilityCopy.TryGetValue(GetAbilityCopyKey(i, 0), out int currentStacks);
+                    string stackText = currentStacks + Ui("스택", " stacks");
+                    if (effectiveCopies > 1) stackText += " ×" + effectiveCopies;
+                    statusLines.Add(stackText);
+                }
+                if (ability.Effect == global::DeckAbilityEffect.AddScorePerDecayingStack)
+                {
+                    card.StackByAbilityCopy.TryGetValue(GetAbilityCopyKey(i, 0), out int currentStacks);
+                    string stackText = currentStacks + Ui("스택", " stacks");
+                    if (effectiveCopies > 1) stackText += " ×" + effectiveCopies;
+                    statusLines.Add(stackText);
                 }
             }
             for (int i = 0; i < card.InheritedRelics.Count; i++)

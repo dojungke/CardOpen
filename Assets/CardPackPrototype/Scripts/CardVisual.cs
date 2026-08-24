@@ -256,6 +256,29 @@ namespace CardOpen.Prototype
             if (data != null && data.HasTag(global::CardTag.Nature)
                 && hasNatureChainTarget && !alreadyDescribesNatureTrigger)
                 body = string.IsNullOrWhiteSpace(body) ? natureEffect : body + "\n" + natureEffect;
+            string stackEffect = useEnglish
+                ? "Whenever a card is drawn, give 1 stack to every Stack card in the deck."
+                : "카드를 뽑을 때 덱의 모든 스택 카드에 1스택 제공";
+            bool alreadyDescribesStackEffect = useEnglish
+                ? body.IndexOf("every Stack card", System.StringComparison.OrdinalIgnoreCase) >= 0
+                : body.Contains("모든 스택 카드") && body.Contains("1스택");
+            if (data != null && data.HasTag(global::CardTag.Stack) && !alreadyDescribesStackEffect)
+                body = string.IsNullOrWhiteSpace(body) ? stackEffect : body + "\n" + stackEffect;
+            string mineralEffect = useEnglish
+                ? "Abilities do not activate from the deck and activate only when drawn."
+                : "덱에 있을 때는 능력이 발동하지 않고 뽑힐 때만 발동";
+            bool alreadyDescribesMineralEffect = useEnglish
+                ? body.IndexOf("only when drawn", System.StringComparison.OrdinalIgnoreCase) >= 0
+                : body.Contains("덱에 있을 때") && body.Contains("뽑힐 때만");
+            if (data != null && data.HasTag(global::CardTag.Mineral) && !alreadyDescribesMineralEffect)
+                body = string.IsNullOrWhiteSpace(body) ? mineralEffect : body + "\n" + mineralEffect;
+            string miningEffect = useEnglish
+                ? "Mining odds improve with the number of Mining cards in the deck."
+                : "덱에 보유한 채굴 카드 수에 따라 광석 카드 채굴 확률 향상";
+            if (data != null && data.HasTag(global::CardTag.Mining)
+                && body.IndexOf(useEnglish ? "Mining odds" : "채굴 확률",
+                    System.StringComparison.OrdinalIgnoreCase) < 0)
+                body = string.IsNullOrWhiteSpace(body) ? miningEffect : body + "\n" + miningEffect;
             if (data == null || data.Tags == null || data.Tags.Count == 0)
                 return body;
             List<string> tagNames = new List<string>();
@@ -271,6 +294,9 @@ namespace CardOpen.Prototype
                     case global::CardTag.Magitech: tagName = useEnglish ? "Magitech" : "\uB9C8\uACF5\uD559"; break;
                     case global::CardTag.Warrior: tagName = useEnglish ? "Warrior" : "\uC804\uC0AC"; break;
                     case global::CardTag.Mage: tagName = useEnglish ? "Mage" : "\uB9C8\uBC95\uC0AC"; break;
+                    case global::CardTag.Stack: tagName = useEnglish ? "Stack" : "\uC2A4\uD0DD"; break;
+                    case global::CardTag.Mineral: tagName = useEnglish ? "Mineral" : "\uAD11\uBB3C"; break;
+                    case global::CardTag.Mining: tagName = useEnglish ? "Mining" : "\uCC44\uAD74"; break;
                     default: tagName = data.Tags[i].ToString(); break;
                 }
                 if (!tagNames.Contains(tagName)) tagNames.Add(tagName);

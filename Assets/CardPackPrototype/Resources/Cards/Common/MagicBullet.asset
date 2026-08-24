@@ -21,6 +21,7 @@ MonoBehaviour:
   FitBackgroundImageToWidth: 1
   Tags:
   - 2
+  - 8
   DeckAbilities:
   - Trigger: 6
     Effect: 10

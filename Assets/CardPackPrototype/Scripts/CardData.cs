@@ -47,7 +47,13 @@ public enum CardTag
     [InspectorName("전사")]
     Warrior = 6,
     [InspectorName("마법사")]
-    Mage = 7
+    Mage = 7,
+    [InspectorName("스택")]
+    Stack = 8,
+    [InspectorName("광물")]
+    Mineral = 9,
+    [InspectorName("채굴")]
+    Mining = 10
 }
 
 public enum DeckAbilityTrigger
@@ -60,7 +66,8 @@ public enum DeckAbilityTrigger
     TriggeredEffectsAtLeastThree = 11,
     IncludedNumbers = 14,
     IncludedColors = 15,
-    MatchingColorAndNumber = 16
+    MatchingColorAndNumber = 16,
+    WhenDrawn = 17
 }
 
 public enum DeckAbilityEffect
@@ -86,7 +93,16 @@ public enum DeckAbilityEffect
     TransformAfterPacks,
     GrantHologramChanceToPacksAndCards,
     TriggerPercentEveryDrawCount,
-    AddScoreEveryOtherCardScoreEvents
+    AddScoreEveryOtherCardScoreEvents,
+    AddScorePerDecayingStack,
+    AddScorePercentPerPackStack,
+    TriggerScoreAndPercentAtStackThresholdEveryDraw,
+    GrantStackToOtherStackCardsAtThreshold,
+    EnchantRandomDeckCardHolographic,
+    AddMinedMineralCardToPackEnd,
+    AddMinedMineralCardOnPackOpen,
+    AddMinedMineralCardAtDrawThreshold,
+    ReplaceNextPackWithMinedMineralsWhenLeftmost
 }
 
 [Serializable]
@@ -132,7 +148,12 @@ public sealed class CardDeckAbility
             && effect != DeckAbilityEffect.WhiteCardsCountAsAllColors
             && effect != DeckAbilityEffect.TransformAfterPacks
             && effect != DeckAbilityEffect.GrantHologramChance
-            && effect != DeckAbilityEffect.GrantHologramChanceToPacksAndCards;
+            && effect != DeckAbilityEffect.GrantHologramChanceToPacksAndCards
+            && effect != DeckAbilityEffect.EnchantRandomDeckCardHolographic
+            && effect != DeckAbilityEffect.AddMinedMineralCardToPackEnd
+            && effect != DeckAbilityEffect.AddMinedMineralCardOnPackOpen
+            && effect != DeckAbilityEffect.AddMinedMineralCardAtDrawThreshold
+            && effect != DeckAbilityEffect.ReplaceNextPackWithMinedMineralsWhenLeftmost;
     }
 }
 

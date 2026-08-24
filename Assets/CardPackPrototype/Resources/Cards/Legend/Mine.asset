@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ceccc00981a4a44bb12cdaa8339d16c, type: 3}
+  m_Name: Mine
+  m_EditorClassIdentifier: Assembly-CSharp::CardData
+  Name: "광산"
+  Description: "이 카드가 덱의 가장 왼쪽에 있으면 다음 팩의 모든 카드를 광석 카드로 대체"
+  EnglishName: "Mine"
+  EnglishDescription: "If this card is leftmost in the deck, replace every card in the next pack with a Mineral card."
+  Rare: 4
+  Image: {fileID: 2800000, guid: 69d12b55c37845d88c1fe07444888f18, type: 3}
+  FitBackgroundImageToWidth: 1
+  Tags: 0a000000
+  CanEquipMagic: 0
+  CanEquipWeapon: 0
+  MaxMergeCount: 1
+  UnlimitedMergeCount: 0
+  DeckAbilities:
+  - Trigger: 0
+    Effect: 29
+    Score: 0
+    PercentBonus: 0
+    MaximumPercent: 0
+    NumberMultiplier: 0
+    PackCardCount: 0
+    ChancePercent: 0
+    ApplicableNumbers: []
+    ApplicableColors: []
+    ResetAccumulationAfterPack: 0
+    StackThreshold: 1
+    DurationDrawCount: 0
+    GeneratedCard: {fileID: 0}
+    TransformedCard: {fileID: 0}
+    PacksToTransform: 1
+    GeneratedCardTag: 9
+    MaxTriggersPerPack: 0
+    ExcludeFromNatureChain: 0

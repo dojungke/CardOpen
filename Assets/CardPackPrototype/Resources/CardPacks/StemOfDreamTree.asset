@@ -24,7 +24,7 @@ MonoBehaviour:
   LegendaryRate: 0.3
   RandomizeNumberAndColor: 1
   IncludeCards:
-  - Card: {fileID: 11400000, guid: c158d2f66fdd13a49b7a28986cb95467, type: 2}
+  - Card: {fileID: 11400000, guid: 1d1f4d603147b3244bccba714548f140, type: 2}
     Number: 1
     Color: 0
     InclusionRate: 6.6666665
@@ -32,7 +32,7 @@ MonoBehaviour:
     Number: 1
     Color: 0
     InclusionRate: 6.6666665
-  - Card: {fileID: 11400000, guid: ffc8137ea9edb964fabde2799ed6c4db, type: 2}
+  - Card: {fileID: 11400000, guid: 4d93128a8df351c4d8cd2b1da7c95c18, type: 2}
     Number: 1
     Color: 0
     InclusionRate: 6.6666665
@@ -40,15 +40,7 @@ MonoBehaviour:
     Number: 1
     Color: 0
     InclusionRate: 6.6666665
-  - Card: {fileID: 11400000, guid: f9f94611b9737234e8f9d3e0d1b5fc00, type: 2}
-    Number: 1
-    Color: 0
-    InclusionRate: 0.75
   - Card: {fileID: 11400000, guid: 125ad73a06bdee648b49f1c4385293d8, type: 2}
-    Number: 1
-    Color: 0
-    InclusionRate: 6.6666665
-  - Card: {fileID: 11400000, guid: 10f7747ebb5324b4baa5ce3032ada953, type: 2}
     Number: 1
     Color: 0
     InclusionRate: 6.6666665
@@ -56,11 +48,19 @@ MonoBehaviour:
     Number: 1
     Color: 0
     InclusionRate: 6.6666665
-  - Card: {fileID: 11400000, guid: 78f4a20c4a53dc54999ac26a44cea8c9, type: 2}
+  - Card: {fileID: 11400000, guid: 10f7747ebb5324b4baa5ce3032ada953, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 4.4500003
-  - Card: {fileID: 11400000, guid: f13909be67ac94440ba6a59969099587, type: 2}
+    InclusionRate: 6.6666665
+  - Card: {fileID: 11400000, guid: c158d2f66fdd13a49b7a28986cb95467, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 6.6666665
+  - Card: {fileID: 11400000, guid: ffc8137ea9edb964fabde2799ed6c4db, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 6.6666665
+  - Card: {fileID: 11400000, guid: 69164d50d21148f4aaea8ae4406c133f, type: 2}
     Number: 1
     Color: 0
     InclusionRate: 4.4500003
@@ -68,51 +68,55 @@ MonoBehaviour:
     Number: 1
     Color: 0
     InclusionRate: 4.4500003
-  - Card: {fileID: 11400000, guid: 5aa380fcf50c8af4bae818d80938790d, type: 2}
+  - Card: {fileID: 11400000, guid: f13909be67ac94440ba6a59969099587, type: 2}
     Number: 1
     Color: 0
     InclusionRate: 4.4500003
-  - Card: {fileID: 11400000, guid: 69164d50d21148f4aaea8ae4406c133f, type: 2}
-    Number: 1
-    Color: 0
-    InclusionRate: 4.4500003
-  - Card: {fileID: 11400000, guid: 1d1f4d603147b3244bccba714548f140, type: 2}
-    Number: 1
-    Color: 0
-    InclusionRate: 6.6666665
-  - Card: {fileID: 11400000, guid: f3cc4e646f864f141a5460fb73da6b27, type: 2}
-    Number: 1
-    Color: 0
-    InclusionRate: 1.6666666
-  - Card: {fileID: 11400000, guid: 6e3f472f2edb4344b8066ede99ccbd6d, type: 2}
-    Number: 1
-    Color: 0
-    InclusionRate: 1.6666666
   - Card: {fileID: 11400000, guid: 43672b0470807eb4289617c8a953d170, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 4.4500003
+  - Card: {fileID: 11400000, guid: 78f4a20c4a53dc54999ac26a44cea8c9, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 4.4500003
+  - Card: {fileID: 11400000, guid: 5aa380fcf50c8af4bae818d80938790d, type: 2}
     Number: 1
     Color: 0
     InclusionRate: 4.4500003
   - Card: {fileID: 11400000, guid: bc09e2d654f7c70458762ead3884a111, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 1.6666666
+    InclusionRate: 1.4285715
+  - Card: {fileID: 11400000, guid: 76a5bbce1f654df2bb81347af3d9ef78, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 1.4285715
   - Card: {fileID: 11400000, guid: a5f9aaeb9d9bb5f468f2a693e8e39b93, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 1.6666666
+    InclusionRate: 1.4285715
   - Card: {fileID: 11400000, guid: 96daa1de8eb43bc468c600ee514d17e9, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 1.6666666
+    InclusionRate: 1.4285715
+  - Card: {fileID: 11400000, guid: f3cc4e646f864f141a5460fb73da6b27, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 1.4285715
   - Card: {fileID: 11400000, guid: c6ad1315e31bf5a468d377cf6800387d, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 1.6666666
-  - Card: {fileID: 11400000, guid: f188ccd27df8b5c458be60508b4f7577, type: 2}
+    InclusionRate: 1.4285715
+  - Card: {fileID: 11400000, guid: 6e3f472f2edb4344b8066ede99ccbd6d, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 1.4285715
+  - Card: {fileID: 11400000, guid: d2d56321b96f0a6409422db15f7173c1, type: 2}
     Number: 1
     Color: 0
     InclusionRate: 0.75
-  - Card: {fileID: 11400000, guid: d2d56321b96f0a6409422db15f7173c1, type: 2}
+  - Card: {fileID: 11400000, guid: f9f94611b9737234e8f9d3e0d1b5fc00, type: 2}
     Number: 1
     Color: 0
     InclusionRate: 0.75
@@ -120,11 +124,15 @@ MonoBehaviour:
     Number: 1
     Color: 0
     InclusionRate: 0.75
-  - Card: {fileID: 11400000, guid: 4d93128a8df351c4d8cd2b1da7c95c18, type: 2}
+  - Card: {fileID: 11400000, guid: f188ccd27df8b5c458be60508b4f7577, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 6.6666665
+    InclusionRate: 0.75
+  - Card: {fileID: 11400000, guid: 2dafbb75fe3a48ddb8982af23e9fa476, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.15
   - Card: {fileID: 11400000, guid: 45933344158043ef8fc652603068e159, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 0.3
+    InclusionRate: 0.15

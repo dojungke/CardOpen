@@ -1,0 +1,51 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ceccc00981a4a44bb12cdaa8339d16c, type: 3}
+  m_Name: Nadir
+  m_EditorClassIdentifier: Assembly-CSharp::CardData
+  Name: "\uB098\uB77D"
+  Description: "\uCE74\uB4DC\uB97C \uBF51\uC744 \uB54C\uB9C8\uB2E4 4\uC2A4\uD0DD
+    \uD68D\uB4DD\n\uC2A4\uD0DD\uC774 44 \uC774\uC0C1\uC774\uBA74 44\uB97C \uC18C\uBAA8\uD574
+    444% \uC810\uC218 \uBCF4\uB108\uC2A4\uC640 4,444\uC810 \uD68D\uB4DD"
+  EnglishName: Nadir
+  EnglishDescription: 'Gain 4 stacks whenever a card is drawn.
+
+    At 44 or more
+    stacks, spend 44 to gain a 444% score bonus and 4,444 points.'
+  Rare: 4
+  Image: {fileID: 2800000, guid: 61ab7246947c4ec0ad07222fa622db42, type: 3}
+  FitBackgroundImageToWidth: 1
+  Tags: 08000000
+  CanEquipMagic: 0
+  CanEquipWeapon: 0
+  MaxMergeCount: 1
+  UnlimitedMergeCount: 0
+  DeckAbilities:
+  - Trigger: 6
+    Effect: 23
+    Score: 4444
+    PercentBonus: 444
+    MaximumPercent: 0
+    NumberMultiplier: 4
+    PackCardCount: 0
+    ChancePercent: 0
+    ApplicableNumbers: 
+    ApplicableColors: 
+    ResetAccumulationAfterPack: 0
+    StackThreshold: 44
+    DurationDrawCount: 0
+    GeneratedCard: {fileID: 0}
+    TransformedCard: {fileID: 0}
+    PacksToTransform: 1
+    GeneratedCardTag: 0
+    MaxTriggersPerPack: 0
+    ExcludeFromNatureChain: 0

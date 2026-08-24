@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ceccc00981a4a44bb12cdaa8339d16c, type: 3}
+  m_Name: Burn
+  m_EditorClassIdentifier: Assembly-CSharp::CardData
+  Name: "\uD654\uC0C1"
+  Description: "\uCE74\uB4DC\uB97C \uBF51\uC744 \uB54C \uADF8 \uCE74\uB4DC\uC758 \uC22B\uC790\uB9CC\uD07C \uC2A4\uD0DD \uD68D\uB4DD\n\uBCF4\uC720\uD55C \uC2A4\uD0DD\uB9C8\uB2E4 10\uC810 \uD68D\uB4DD\n\uB2E4\uC74C \uCE74\uB4DC\uB97C \uBF51\uC744 \uB54C \uAE30\uC874 \uC2A4\uD0DD\uC774 \uC808\uBC18\uC73C\uB85C \uAC10\uC18C"
+  EnglishName: "Burn"
+  EnglishDescription: "Whenever a card is drawn, gain stacks equal to its number.\nGain 10 points per stack held.\nWhen the next card is drawn, halve existing stacks."
+  Rare: 2
+  Image: {fileID: 2800000, guid: a37829583d2b8e64586e09a1dfbceddd, type: 3}
+  FitBackgroundImageToWidth: 1
+  Tags:
+  - 8
+  CanEquipMagic: 0
+  CanEquipWeapon: 0
+  MaxMergeCount: 1
+  UnlimitedMergeCount: 0
+  DeckAbilities:
+  - Trigger: 6
+    Effect: 21
+    Score: 10
+    PercentBonus: 0
+    MaximumPercent: 0
+    NumberMultiplier: 1
+    PackCardCount: 0
+    ChancePercent: 0
+    ApplicableNumbers:
+    ApplicableColors:
+    ResetAccumulationAfterPack: 0
+    StackThreshold: 1
+    DurationDrawCount: 0
+    GeneratedCard: {fileID: 0}
+    TransformedCard: {fileID: 0}
+    PacksToTransform: 1
+    GeneratedCardTag: 0
+    MaxTriggersPerPack: 0
+    ExcludeFromNatureChain: 0
