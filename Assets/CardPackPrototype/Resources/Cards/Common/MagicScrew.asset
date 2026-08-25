@@ -25,6 +25,12 @@ MonoBehaviour:
   CanEquipWeapon: 0
   MaxMergeCount: 4
   UnlimitedMergeCount: 0
+  FusionRecipeId: MagicEngineeringSatellite
+  FusionRequiredCopies: 4
+  FusionResult: {fileID: 11400000, guid: 3f7e1c0a9bdb4d9ca1c0a7256cbf82b1, type: 2}
+  UseAsFusionAppearanceSource: 0
+  ShortStatusName: 나사
+  EnglishShortStatusName: Screw
   DeckAbilities:
   - Trigger: 6
     Effect: 0

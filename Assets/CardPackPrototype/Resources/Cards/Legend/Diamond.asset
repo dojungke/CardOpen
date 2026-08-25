@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: Diamond
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "다이아몬드"
-  Description: "뽑힐 때 5,000점 획득\n500% 점수 보너스 제공\n덱의 카드 1장에 홀로그램 부여"
+  Description: "뽑힐 때 2,500점 획득\n250% 점수 보너스 제공\n덱의 카드 1장에 홀로그램 부여"
   EnglishName: "Diamond"
-  EnglishDescription: "Gain 5,000 points when drawn.\nGain a 500% score bonus when drawn.\nEnchant 1 card in the deck with Holographic."
+  EnglishDescription: "Gain 2,500 points when drawn.\nGain a 250% score bonus when drawn.\nEnchant 1 card in the deck with Holographic."
   Rare: 4
   Image: {fileID: 2800000, guid: 27bcefb683da4f2a914c3cd9837e41d6, type: 3}
   FitBackgroundImageToWidth: 1
@@ -24,10 +24,22 @@ MonoBehaviour:
   CanEquipWeapon: 0
   MaxMergeCount: 1
   UnlimitedMergeCount: 0
+  MiningChanceByLevel:
+  - 0
+  - 0
+  - 0
+  - 0.5
+  - 1
+  - 3
+  - 5
+  - 7.5
+  - 10
+  - 15
+  MiningChanceChangePerLevelAboveTen: 3
   DeckAbilities:
   - Trigger: 17
     Effect: 0
-    Score: 5000
+    Score: 2500
     PercentBonus: 0
     MaximumPercent: 0
     NumberMultiplier: 0
@@ -47,7 +59,7 @@ MonoBehaviour:
   - Trigger: 17
     Effect: 1
     Score: 0
-    PercentBonus: 500
+    PercentBonus: 250
     MaximumPercent: 0
     NumberMultiplier: 0
     PackCardCount: 0
@@ -64,7 +76,7 @@ MonoBehaviour:
     MaxTriggersPerPack: 0
     ExcludeFromNatureChain: 0
   - Trigger: 17
-    Effect: 25
+    Effect: 26
     Score: 0
     PercentBonus: 0
     MaximumPercent: 0

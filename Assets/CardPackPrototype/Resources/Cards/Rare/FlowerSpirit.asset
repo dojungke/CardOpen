@@ -13,7 +13,10 @@ MonoBehaviour:
   m_Name: FlowerSpirit
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uAF43 \uC815\uB839"
-  Description: "\uCE74\uB4DC\uB97C \uBF51\uC744 \uB54C \uADF8 \uCE74\uB4DC\uC758\n    \uC22B\uC790\uB9CC\uD07C \uC2A4\uD0DD \uD68D\uB4DD\n\uC2A4\uD0DD\uC774 3 \uC774\uC0C1\uC774\uBA74\n    3\uC744 \uC18C\uBAA8\uD574 \uAF43 \uC815\uB839\uC744 \uC81C\uC678\uD55C \uBAA8\uB4E0\n    \uC2A4\uD0DD \uCE74\uB4DC\uC5D0 1\uC2A4\uD0DD \uC81C\uACF5"
+  Description: "\uCE74\uB4DC\uB97C \uBF51\uC744 \uB54C \uADF8 \uCE74\uB4DC\uC758
+    \uC22B\uC790\uB9CC\uD07C \uC2A4\uD0DD \uD68D\uB4DD\n\uC2A4\uD0DD\uC774 3 \uC774\uC0C1\uC774\uBA74
+    3\uC744 \uC18C\uBAA8\uD574 \uAF43 \uC815\uB839\uC744 \uC81C\uC678\uD55C \uBAA8\uB4E0
+    \uC2A4\uD0DD \uCE74\uB4DC\uC5D0 1\uC2A4\uD0DD \uC81C\uACF5"
   EnglishName: Flower Spirit
   EnglishDescription: 'Gain stacks equal to the drawn card''s number.
 
@@ -27,9 +30,25 @@ MonoBehaviour:
   CanEquipWeapon: 0
   MaxMergeCount: 1
   UnlimitedMergeCount: 0
+  ScorePopupAggregation: 0
+  IgnoreExternalStackGrants: 1
+  MiningChanceByLevel:
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  MiningChanceChangePerLevelAboveTen: 0
+  FusionRecipeId: 
+  FusionRequiredCopies: 1
+  FusionResult: {fileID: 0}
+  UseAsFusionAppearanceSource: 0
+  ClearInheritedRelicsOnLoad: 0
+  ShortStatusName: 
+  EnglishShortStatusName: 
   DeckAbilities:
   - Trigger: 6
-    Effect: 24
+    Effect: 25
     Score: 0
     PercentBonus: 0
     MaximumPercent: 0
@@ -46,4 +65,4 @@ MonoBehaviour:
     PacksToTransform: 1
     GeneratedCardTag: 0
     MaxTriggersPerPack: 0
-    ExcludeFromNatureChain: 0
+    ExcludeFromNatureChain: 1

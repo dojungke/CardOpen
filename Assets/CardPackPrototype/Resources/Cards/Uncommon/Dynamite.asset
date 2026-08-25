@@ -12,29 +12,45 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9ceccc00981a4a44bb12cdaa8339d16c, type: 3}
   m_Name: Dynamite
   m_EditorClassIdentifier: Assembly-CSharp::CardData
-  Name: "다이너마이트"
-  Description: "카드팩을 열 때 광석 카드 1장 생성"
-  EnglishName: "Dynamite"
-  EnglishDescription: "When a card pack is opened, generate 1 Mineral card."
+  Name: "\uB2E4\uC774\uB108\uB9C8\uC774\uD2B8"
+  Description: "\uCE74\uB4DC\uD329\uC744 \uC5F4 \uB54C \uAD11\uC11D \uCE74\uB4DC
+    1\uC7A5 \uC0DD\uC131"
+  EnglishName: Dynamite
+  EnglishDescription: When a card pack is opened, generate 1 Mineral card.
   Rare: 1
-  Image: {fileID: 2800000, guid: a37829583d2b8e64586e09a1dfbceddd, type: 3}
+  Image: {fileID: 2800000, guid: 60dcced7fe81f6f4ebe75c3031dec12b, type: 3}
   FitBackgroundImageToWidth: 0
   Tags: 0a000000
   CanEquipMagic: 0
   CanEquipWeapon: 0
   MaxMergeCount: 1
   UnlimitedMergeCount: 0
+  ScorePopupAggregation: 0
+  IgnoreExternalStackGrants: 0
+  MiningChanceByLevel:
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  FusionRecipeId: 
+  FusionRequiredCopies: 1
+  FusionResult: {fileID: 0}
+  UseAsFusionAppearanceSource: 0
+  ClearInheritedRelicsOnLoad: 0
+  ShortStatusName: 
+  EnglishShortStatusName: 
   DeckAbilities:
   - Trigger: 0
-    Effect: 27
+    Effect: 28
     Score: 0
     PercentBonus: 0
     MaximumPercent: 0
     NumberMultiplier: 0
     PackCardCount: 1
     ChancePercent: 0
-    ApplicableNumbers: []
-    ApplicableColors: []
+    ApplicableNumbers: 
+    ApplicableColors: 
     ResetAccumulationAfterPack: 0
     StackThreshold: 1
     DurationDrawCount: 0

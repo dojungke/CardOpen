@@ -27,7 +27,7 @@ MonoBehaviour:
   UnlimitedMergeCount: 0
   DeckAbilities:
   - Trigger: 6
-    Effect: 22
+    Effect: 23
     Score: 0
     PercentBonus: 4
     MaximumPercent: 0

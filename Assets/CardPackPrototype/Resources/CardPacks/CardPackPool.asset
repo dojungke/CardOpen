@@ -40,3 +40,6 @@ MonoBehaviour:
   - Enabled: 1
     Pack: {fileID: 11400000, guid: afc9ab97776ac774cafd2c0814de9df0, type: 2}
     Weight: 1
+  - Enabled: 1
+    Pack: {fileID: 11400000, guid: 9d6ac19337184bbfb07e255df0d673ed, type: 2}
+    Weight: 1

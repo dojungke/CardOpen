@@ -24,6 +24,7 @@ MonoBehaviour:
   CanEquipWeapon: 0
   MaxMergeCount: 1
   UnlimitedMergeCount: 0
+  ClearInheritedRelicsOnLoad: 1
   DeckAbilities:
   - Trigger: 6
     Effect: 0

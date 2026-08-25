@@ -13,21 +13,9 @@ MonoBehaviour:
   m_Name: FireRune
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uBD88\uB8EC"
-  Description: "\uBD89\uC740\uC0C9 \uCE74\uB4DC\uC5D0 20% \uC810\uC218 \uBCF4\uB108\uC2A4\n\uBD89\uC740\uC0C9
-    \uCE74\uB4DC\uB97C \uBF51\uC73C\uBA74 100\uC810 \uD68D\uB4DD\n\uBD89\uC740\uC0C9
-    \uCE74\uB4DC\uB97C \uBF51\uC73C\uBA74 2% \uD655\uB960\uB85C \uD640\uB85C\uADF8\uB7A8
-    \uBD80\uC5EC\n\uB2E4\uB978 \uC885\uB958\uC758 \uB8EC\uC744 \uD68D\uB4DD\uD558\uBA74
-    \uACF5\uBA85"
+  Description: "붉은색 카드를 뽑을 시 20% 점수 보너스, 100점 획득\n2% 확률로 홀로그램 부여\n다른 종류의 룬을 획득하면 공명"
   EnglishName: Fire Rune
-  EnglishDescription: 'Red cards gain a 20% score bonus.
-
-    Gain 100 pts when a
-    red card is drawn.
-
-    When a red card is drawn, it has a 2% chance to become
-    Holographic.
-
-    Resonates when you obtain a different type of Rune.'
+  EnglishDescription: "On red draw: +20% score, +100 pts\n2% chance to become Holographic\nResonates with a different Rune type"
   Rare: 1
   Image: {fileID: 2800000, guid: d747a895d8f4a23449054158390e48c0, type: 3}
   FitBackgroundImageToWidth: 0

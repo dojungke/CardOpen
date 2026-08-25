@@ -72,37 +72,45 @@ public enum DeckAbilityTrigger
 
 public enum DeckAbilityEffect
 {
-    AddScore,
-    AddTriggeredScorePercent,
-    AddRevealedNumberTimesScore,
-    AddNextPackCards,
-    GrantHologramChance,
-    IncreaseScoreBonusEfficiency,
-    AccumulateScoreBonusPerDraw,
-    TriggerPercentAtStackThreshold,
-    AddScoreOnPackOpen,
-    AddRandomCommonCardToPackEnd,
-    TriggerScoreAtStackThreshold,
-    AccumulateFlatScorePerDraw,
-    AccumulatePercentAtStackThreshold,
-    GrantTemporaryPercentForNextDraws,
-    WhiteCardsCountAsAllColors,
-    AddSpecificCardAtStackThreshold,
-    AddRandomTaggedCardOnPackOpen,
-    AccumulateScoreBonusEfficiencyByNumber,
-    TransformAfterPacks,
-    GrantHologramChanceToPacksAndCards,
-    TriggerPercentEveryDrawCount,
-    AddScoreEveryOtherCardScoreEvents,
-    AddScorePerDecayingStack,
-    AddScorePercentPerPackStack,
-    TriggerScoreAndPercentAtStackThresholdEveryDraw,
-    GrantStackToOtherStackCardsAtThreshold,
-    EnchantRandomDeckCardHolographic,
-    AddMinedMineralCardToPackEnd,
-    AddMinedMineralCardOnPackOpen,
-    AddMinedMineralCardAtDrawThreshold,
-    ReplaceNextPackWithMinedMineralsWhenLeftmost
+    AddScore = 0,
+    AddTriggeredScorePercent = 1,
+    AddRevealedNumberTimesScore = 2,
+    AddNextPackCards = 3,
+    GrantHologramChance = 4,
+    IncreaseScoreBonusEfficiency = 5,
+    AccumulateScoreBonusPerDraw = 6,
+    TriggerPercentAtStackThreshold = 7,
+    AddScoreOnPackOpen = 8,
+    AddRandomCommonCardToPackEnd = 9,
+    TriggerScoreAtStackThreshold = 10,
+    AccumulateFlatScorePerDraw = 11,
+    AccumulatePercentAtStackThreshold = 12,
+    GrantTemporaryPercentForNextDraws = 13,
+    WhiteCardsCountAsAllColors = 14,
+    AddSpecificCardAtStackThreshold = 15,
+    AddRandomTaggedCardOnPackOpen = 16,
+    AccumulateScoreBonusEfficiencyByNumber = 17,
+    TransformAfterPacks = 18,
+    GrantHologramChanceToPacksAndCards = 19,
+    TriggerPercentEveryDrawCount = 20,
+    AddScoreEveryOtherCardScoreEvents = 21,
+    AddScorePerDecayingStack = 22,
+    AddScorePercentPerPackStack = 23,
+    TriggerScoreAndPercentAtStackThresholdEveryDraw = 24,
+    GrantStackToOtherStackCardsAtThreshold = 25,
+    EnchantRandomDeckCardHolographic = 26,
+    AddMinedMineralCardToPackEnd = 27,
+    AddMinedMineralCardOnPackOpen = 28,
+    AddMinedMineralCardAtDrawThreshold = 29,
+    ReplaceNextPackWithMinedMineralsWhenLeftmost = 30,
+    AddMinedMineralCardAtStackThreshold = 31
+}
+
+public enum ScorePopupAggregation
+{
+    None,
+    GroupRepeatedTriggers,
+    MergeEffectiveCopies
 }
 
 [Serializable]
@@ -153,7 +161,8 @@ public sealed class CardDeckAbility
             && effect != DeckAbilityEffect.AddMinedMineralCardToPackEnd
             && effect != DeckAbilityEffect.AddMinedMineralCardOnPackOpen
             && effect != DeckAbilityEffect.AddMinedMineralCardAtDrawThreshold
-            && effect != DeckAbilityEffect.ReplaceNextPackWithMinedMineralsWhenLeftmost;
+            && effect != DeckAbilityEffect.ReplaceNextPackWithMinedMineralsWhenLeftmost
+            && effect != DeckAbilityEffect.AddMinedMineralCardAtStackThreshold;
     }
 }
 
@@ -180,6 +189,22 @@ public class CardData : ScriptableObject
     [Min(1)] public int MaxMergeCount = 1;
     public bool UnlimitedMergeCount;
 
+    [Header("Reusable Mechanics")]
+    public ScorePopupAggregation ScorePopupAggregation;
+    [Tooltip("Does not receive stack grants from cards such as Flower Spirit.")]
+    public bool IgnoreExternalStackGrants;
+    [Tooltip("Mining probability for mining levels 1 through 10.")]
+    public float[] MiningChanceByLevel = new float[10];
+    [Tooltip("Chance change applied once per mining level above level 10.")]
+    public float MiningChanceChangePerLevelAboveTen;
+    public string FusionRecipeId;
+    [Min(1)] public int FusionRequiredCopies = 1;
+    public CardData FusionResult;
+    public bool UseAsFusionAppearanceSource;
+    public bool ClearInheritedRelicsOnLoad;
+    public string ShortStatusName;
+    public string EnglishShortStatusName;
+
     [Header("Deck Abilities")]
     public List<CardDeckAbility> DeckAbilities = new List<CardDeckAbility>();
 
@@ -196,6 +221,23 @@ public class CardData : ScriptableObject
     public string GetLocalizedDescription(bool english)
     {
         return english && !string.IsNullOrWhiteSpace(EnglishDescription) ? EnglishDescription : Description;
+    }
+
+    public float GetMiningChance(int miningLevel)
+    {
+        if (MiningChanceByLevel == null || MiningChanceByLevel.Length == 0) return 0f;
+        int index = Mathf.Clamp(miningLevel, 1, 10) - 1;
+        float baseChance = index < MiningChanceByLevel.Length ? MiningChanceByLevel[index] : 0f;
+        int levelsAboveTen = Mathf.Max(0, miningLevel - 10);
+        return Mathf.Max(0f, baseChance
+            + MiningChanceChangePerLevelAboveTen * levelsAboveTen);
+    }
+
+    public string GetLocalizedShortStatusName(bool english)
+    {
+        if (english && !string.IsNullOrWhiteSpace(EnglishShortStatusName)) return EnglishShortStatusName;
+        if (!english && !string.IsNullOrWhiteSpace(ShortStatusName)) return ShortStatusName;
+        return GetLocalizedName(english);
     }
 
     public string RarityAssetKey

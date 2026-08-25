@@ -12,10 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9ceccc00981a4a44bb12cdaa8339d16c, type: 3}
   m_Name: Gold
   m_EditorClassIdentifier: Assembly-CSharp::CardData
-  Name: "금"
-  Description: "뽑힐 때 2,000점 획득\n200% 점수 보너스 제공"
-  EnglishName: "Gold"
-  EnglishDescription: "Gain 2,000 points when drawn.\nGain a 200% score bonus when drawn."
+  Name: "\uAE08"
+  Description: "뽑힐 때 500점 획득\n100% 점수 보너스 제공"
+  EnglishName: Gold
+  EnglishDescription: "Gain 500 points when drawn.\nGain a 100% score bonus when drawn."
   Rare: 3
   Image: {fileID: 2800000, guid: 257e707c6a98411d95713c83c99019a6, type: 3}
   FitBackgroundImageToWidth: 0
@@ -24,17 +24,28 @@ MonoBehaviour:
   CanEquipWeapon: 0
   MaxMergeCount: 1
   UnlimitedMergeCount: 0
+  MiningChanceByLevel:
+  - 0
+  - 1.25
+  - 2.5
+  - 6
+  - 9.5
+  - 11
+  - 12.5
+  - 16.25
+  - 20
+  - 25
   DeckAbilities:
   - Trigger: 17
     Effect: 0
-    Score: 2000
+    Score: 500
     PercentBonus: 0
     MaximumPercent: 0
     NumberMultiplier: 0
     PackCardCount: 0
     ChancePercent: 0
-    ApplicableNumbers: []
-    ApplicableColors: []
+    ApplicableNumbers:
+    ApplicableColors:
     ResetAccumulationAfterPack: 0
     StackThreshold: 1
     DurationDrawCount: 0
@@ -47,13 +58,13 @@ MonoBehaviour:
   - Trigger: 17
     Effect: 1
     Score: 0
-    PercentBonus: 200
+    PercentBonus: 100
     MaximumPercent: 0
     NumberMultiplier: 0
     PackCardCount: 0
     ChancePercent: 0
-    ApplicableNumbers: []
-    ApplicableColors: []
+    ApplicableNumbers:
+    ApplicableColors:
     ResetAccumulationAfterPack: 0
     StackThreshold: 1
     DurationDrawCount: 0

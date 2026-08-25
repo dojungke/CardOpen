@@ -13,21 +13,35 @@ MonoBehaviour:
   m_Name: Stick
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uB9C9\uB300"
-  Description: "카드 숫자가 3 이하이면 50점 획득"
-  EnglishName: "Stick"
-  EnglishDescription: "Gain 50 points when a card numbered 3 or lower is drawn."
+  Description: "\uCE74\uB4DC \uC22B\uC790\uAC00 3 \uC774\uD558\uC774\uBA74 50\uC810
+    \uD68D\uB4DD"
+  EnglishName: Stick
+  EnglishDescription: Gain 50 points when a card numbered 3 or lower is drawn.
   Rare: 0
   Image: {fileID: 2800000, guid: 2670fbed92b71ed47993798302538cf9, type: 3}
-  Tags:
-  - 4
+  FitBackgroundImageToWidth: 0
+  Tags: 040000000a000000
+  CanEquipMagic: 0
+  CanEquipWeapon: 0
+  MaxMergeCount: 1
+  UnlimitedMergeCount: 0
   DeckAbilities:
   - Trigger: 14
-    ApplicableNumbers:
-    - 1
-    - 2
-    - 3
     Effect: 0
     Score: 50
     PercentBonus: 0
+    MaximumPercent: 0
     NumberMultiplier: 0
     PackCardCount: 0
+    ChancePercent: 0
+    ApplicableNumbers: 010000000200000003000000
+    ApplicableColors: 
+    ResetAccumulationAfterPack: 0
+    StackThreshold: 1
+    DurationDrawCount: 0
+    GeneratedCard: {fileID: 0}
+    TransformedCard: {fileID: 0}
+    PacksToTransform: 1
+    GeneratedCardTag: 0
+    MaxTriggersPerPack: 0
+    ExcludeFromNatureChain: 0

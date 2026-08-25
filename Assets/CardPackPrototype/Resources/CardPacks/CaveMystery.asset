@@ -1,0 +1,118 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1270bfa34d1a0954b9836462c93efbbe, type: 3}
+  m_Name: CaveMystery
+  m_EditorClassIdentifier: Assembly-CSharp::CardPackData
+  Name: "\uB3D9\uAD74 \uC18D \uC2E0\uBE44"
+  FrontImage: {fileID: 2800000, guid: c47a629d32614eaba574f61ea2c14c22, type: 3}
+  BackImage: {fileID: 2800000, guid: 8a321d045c384fc6bcddcc9400128d91, type: 3}
+  CardsPerPack: 5
+  UseRarityRates: 1
+  CommonRate: 60
+  UncommonRate: 26.7
+  RareRate: 10
+  EpicRate: 3
+  LegendaryRate: 0.3
+  RandomizeNumberAndColor: 1
+  IncludeCards:
+  - Card: {fileID: 11400000, guid: 3253f250a1e541ac832ea9ae42e556ba, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 10
+  - Card: {fileID: 11400000, guid: 65740ba620b3c654594f2b1be83086fd, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 10
+  - Card: {fileID: 11400000, guid: ffc8137ea9edb964fabde2799ed6c4db, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 10
+  - Card: {fileID: 11400000, guid: 33bb9d54d6c253f449d224d71a1e451e, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 10
+  - Card: {fileID: 11400000, guid: 0a67ed72c6ac4bb986ac3db1de508c31, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 10
+  - Card: {fileID: 11400000, guid: 0c001282477550f4b8dab93f5fe3ce76, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 10
+  - Card: {fileID: 11400000, guid: 994bad3317b7429dacb68cc2333b53df, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 5.34
+  - Card: {fileID: 11400000, guid: 78f4a20c4a53dc54999ac26a44cea8c9, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 5.34
+  - Card: {fileID: 11400000, guid: f37c8c48c2764b9890fbaf02980cb21a, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 5.34
+  - Card: {fileID: 11400000, guid: f13909be67ac94440ba6a59969099587, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 5.34
+  - Card: {fileID: 11400000, guid: e3d80eef534988b4ea553fa9ddd02692, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 5.34
+  - Card: {fileID: 11400000, guid: 64054bab1a954ea2b549a6859d3876d6, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 2
+  - Card: {fileID: 11400000, guid: a221c4cb69694bd3b89b7f1968583cf7, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 2
+  - Card: {fileID: 11400000, guid: b38787f1e40c46c48ae62354b40cc6b2, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 2
+  - Card: {fileID: 11400000, guid: 6a82e8f0d73b8794fa949d11f3b2d863, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 2
+  - Card: {fileID: 11400000, guid: e8a269226d446cc4aa7915be3683aae4, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 2
+  - Card: {fileID: 11400000, guid: 49633fe7795a83546a6f0a189ac7ae6f, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.75
+  - Card: {fileID: 11400000, guid: 2b984dc96d09460b95c9435d2b15210f, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.75
+  - Card: {fileID: 11400000, guid: e8f23c61cedc4314b631fd344da48a0e, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.75
+  - Card: {fileID: 11400000, guid: b4932a60599d6774c9e924283dd84c2b, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.75
+  - Card: {fileID: 11400000, guid: 2c5bdf8f497a4c15a40962a332d1dc61, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.1
+  - Card: {fileID: 11400000, guid: b5d2f820df1240f6926c83184b097a51, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.1
+  - Card: {fileID: 11400000, guid: 2dafbb75fe3a48ddb8982af23e9fa476, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.1

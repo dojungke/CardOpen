@@ -21,6 +21,7 @@ MonoBehaviour:
   FitBackgroundImageToWidth: 1
   Tags: []
   UnlimitedMergeCount: 1
+  ScorePopupAggregation: 2
   DeckAbilities:
   - Trigger: 6
     Effect: 0

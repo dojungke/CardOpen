@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: Copper
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "구리"
-  Description: "뽑힐 때 500점 획득\n50% 점수 보너스 제공"
+  Description: "뽑힐 때 250점 획득\n25% 점수 보너스 제공"
   EnglishName: "Copper"
-  EnglishDescription: "Gain 500 points when drawn.\nGain a 50% score bonus when drawn."
+  EnglishDescription: "Gain 250 points when drawn.\nGain a 25% score bonus when drawn."
   Rare: 1
   Image: {fileID: 2800000, guid: b4e444eeb5334e6bb32693cae3602d43, type: 3}
   FitBackgroundImageToWidth: 0
@@ -24,10 +24,22 @@ MonoBehaviour:
   CanEquipWeapon: 0
   MaxMergeCount: 1
   UnlimitedMergeCount: 0
+  MiningChanceByLevel:
+  - 20
+  - 22.5
+  - 25
+  - 27.5
+  - 30
+  - 30
+  - 30
+  - 25
+  - 20
+  - 15
+  MiningChanceChangePerLevelAboveTen: -2
   DeckAbilities:
   - Trigger: 17
     Effect: 0
-    Score: 500
+    Score: 250
     PercentBonus: 0
     MaximumPercent: 0
     NumberMultiplier: 0
@@ -47,7 +59,7 @@ MonoBehaviour:
   - Trigger: 17
     Effect: 1
     Score: 0
-    PercentBonus: 50
+    PercentBonus: 25
     MaximumPercent: 0
     NumberMultiplier: 0
     PackCardCount: 0

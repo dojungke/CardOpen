@@ -23,4 +23,44 @@ MonoBehaviour:
   EpicRate: 20
   LegendaryRate: 20
   RandomizeNumberAndColor: 1
-  IncludeCards: []
+  IncludeCards:
+  - Card: {fileID: 11400000, guid: 3253f250a1e541ac832ea9ae42e556ba, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 10
+  - Card: {fileID: 11400000, guid: 0a67ed72c6ac4bb986ac3db1de508c31, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 10
+  - Card: {fileID: 11400000, guid: 994bad3317b7429dacb68cc2333b53df, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 10
+  - Card: {fileID: 11400000, guid: f37c8c48c2764b9890fbaf02980cb21a, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 10
+  - Card: {fileID: 11400000, guid: 64054bab1a954ea2b549a6859d3876d6, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 10
+  - Card: {fileID: 11400000, guid: a221c4cb69694bd3b89b7f1968583cf7, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 10
+  - Card: {fileID: 11400000, guid: 2b984dc96d09460b95c9435d2b15210f, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 10
+  - Card: {fileID: 11400000, guid: e8f23c61cedc4314b631fd344da48a0e, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 10
+  - Card: {fileID: 11400000, guid: 2c5bdf8f497a4c15a40962a332d1dc61, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 10
+  - Card: {fileID: 11400000, guid: b5d2f820df1240f6926c83184b097a51, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 10

@@ -13,21 +13,9 @@ MonoBehaviour:
   m_Name: EarthRune
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uB300\uC9C0\uB8EC"
-  Description: "\uCD08\uB85D\uC0C9 \uCE74\uB4DC\uC5D0 40% \uC810\uC218 \uBCF4\uB108\uC2A4\n\uCD08\uB85D\uC0C9
-    \uCE74\uB4DC\uB97C \uBF51\uC73C\uBA74 200\uC810 \uD68D\uB4DD\n\uCD08\uB85D\uC0C9
-    \uCE74\uB4DC\uB97C \uBF51\uC73C\uBA74 4% \uD655\uB960\uB85C \uD640\uB85C\uADF8\uB7A8
-    \uBD80\uC5EC\n\uB2E4\uB978 \uC885\uB958\uC758 \uB8EC\uC744 \uD68D\uB4DD\uD558\uBA74
-    \uACF5\uBA85"
+  Description: "초록색 카드를 뽑을 시 40% 점수 보너스, 200점 획득\n4% 확률로 홀로그램 부여\n다른 종류의 룬을 획득하면 공명"
   EnglishName: Earth Rune
-  EnglishDescription: 'Green cards gain a 40% score bonus.
-
-    Gain 200 pts when
-    a green card is drawn.
-
-    When a green card is drawn, it has a 4% chance to
-    become Holographic.
-
-    Resonates when you obtain a different type of Rune.'
+  EnglishDescription: "On green draw: +40% score, +200 pts\n4% chance to become Holographic\nResonates with a different Rune type"
   Rare: 2
   Image: {fileID: 2800000, guid: 014aaeaaa787eba4db7b11c483a1c963, type: 3}
   FitBackgroundImageToWidth: 0

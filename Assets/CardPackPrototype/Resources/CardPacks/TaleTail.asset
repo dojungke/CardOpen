@@ -207,47 +207,51 @@ MonoBehaviour:
   - Card: {fileID: 11400000, guid: 88ecf8c3463aa6f4baaf6d52cab8ec08, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 0.27272728
+    InclusionRate: 0.25
   - Card: {fileID: 11400000, guid: b65ccc41ca685d64a964e7092050c6a3, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 0.27272728
+    InclusionRate: 0.25
+  - Card: {fileID: 11400000, guid: e8f23c61cedc4314b631fd344da48a0e, type: 2}
+    Number: 1
+    Color: 0
+    InclusionRate: 0.25
   - Card: {fileID: 11400000, guid: 4be4d1dd7568c1040ad30afa92470c12, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 0.27272728
+    InclusionRate: 0.25
   - Card: {fileID: 11400000, guid: f18ad3e7c94b4bb5a28e31f06c849d56, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 0.27272728
+    InclusionRate: 0.25
   - Card: {fileID: 11400000, guid: d2d56321b96f0a6409422db15f7173c1, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 0.27272728
+    InclusionRate: 0.25
   - Card: {fileID: 11400000, guid: f9f94611b9737234e8f9d3e0d1b5fc00, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 0.27272728
+    InclusionRate: 0.25
   - Card: {fileID: 11400000, guid: 56c23e0144c26af4bb11033379898771, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 0.27272728
+    InclusionRate: 0.25
   - Card: {fileID: 11400000, guid: f188ccd27df8b5c458be60508b4f7577, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 0.27272728
+    InclusionRate: 0.25
   - Card: {fileID: 11400000, guid: b4932a60599d6774c9e924283dd84c2b, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 0.27272728
+    InclusionRate: 0.25
   - Card: {fileID: 11400000, guid: 615637c2722757c4493b5dc998dcb99c, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 0.27272728
+    InclusionRate: 0.25
   - Card: {fileID: 11400000, guid: 7e4ca90c248182444ab2d032f0e7d568, type: 2}
     Number: 1
     Color: 0
-    InclusionRate: 0.27272728
+    InclusionRate: 0.25
   - Card: {fileID: 11400000, guid: b5d2f820df1240f6926c83184b097a51, type: 2}
     Number: 1
     Color: 0

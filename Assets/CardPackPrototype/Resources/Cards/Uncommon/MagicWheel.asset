@@ -21,6 +21,12 @@ MonoBehaviour:
   Tags:
   - 5
   MaxMergeCount: 2
+  FusionRecipeId: MagicEngineeringSatellite
+  FusionRequiredCopies: 2
+  FusionResult: {fileID: 11400000, guid: 3f7e1c0a9bdb4d9ca1c0a7256cbf82b1, type: 2}
+  UseAsFusionAppearanceSource: 0
+  ShortStatusName: 바퀴
+  EnglishShortStatusName: Wheel
   DeckAbilities:
   - Trigger: 6
     Effect: 5

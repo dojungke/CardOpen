@@ -9,7 +9,7 @@ namespace CardOpen.Prototype
     {
         private const int CardNameCharactersPerLine = 9;
         private const int LatinCardNameCharactersPerLine = 20;
-        private const float CardNameMaximumWidth = 1.32f;
+        private const float CardNameMaximumWidth = 1.254f;
         private const float CardNameMaximumHeight = 0.38f;
         private const float LatinCardNameHorizontalScale = 0.9f;
         private MeshRenderer cardRenderer;
@@ -96,19 +96,12 @@ namespace CardOpen.Prototype
             string localizedName = data != null ? data.GetLocalizedName(useEnglish) : string.Empty;
             string cardName = !string.IsNullOrWhiteSpace(localizedName)
                 ? localizedName : useEnglish ? "Unnamed" : "이름 없음";
-            string displayName = FormatCardName(cardName, out int longestNameLine, out _);
+            string displayName = FormatCardName(cardName, out _, out _);
             string description = BuildTaggedDescription(data,
                 data != null ? data.GetLocalizedDescription(useEnglish) : string.Empty, useEnglish);
-            float nameScaleTarget = ContainsWideNameCharacter(cardName) ? 5f : 14f;
-            float nameLengthScale = longestNameLine > nameScaleTarget
-                ? nameScaleTarget / longestNameLine : 1f;
-            float nameScale = 0.04f * nameLengthScale;
-            CreateTextLayer("Card Name", displayName, new Vector3(0.20f, 1.39f, -0.0105f),
-                textFont, 64, nameScale, TextAnchor.MiddleCenter, TextAlignment.Center, textColor, 30,
-                CardNameMaximumWidth, CardNameMaximumHeight, isLegendary);
-            SetCardNameHorizontalScale(ContainsWideNameCharacter(cardName)
-                ? 1f : LatinCardNameHorizontalScale);
-            CreateDescriptionLayer(description, new Vector3(0f, -0.47f, -0.0108f), textFont, textColor, 31,
+            CreateCardNameLayer(displayName, new Vector3(0.20f, 1.39f, -0.0105f),
+                textFont, textColor, 30, isLegendary);
+            CreateDescriptionLayer(description, new Vector3(0f, -0.372f, -0.0108f), textFont, textColor, 31,
                 isLegendary);
             SetFaceUp(true);
         }
@@ -135,6 +128,15 @@ namespace CardOpen.Prototype
                 renderer.sharedMaterial = GetWorldTextMaterial(textMesh.font);
                 FitTextRendererInside(textMesh.transform, renderer,
                     CardNameMaximumWidth, CardNameMaximumHeight);
+            }
+            TextMeshPro[] tmpNames = GetComponentsInChildren<TextMeshPro>(true);
+            for (int i = 0; i < tmpNames.Length; i++)
+            {
+                TextMeshPro tmpName = tmpNames[i];
+                if (tmpName == null || !tmpName.gameObject.name.StartsWith("Card Name TMP")) continue;
+                PrepareTmpCharacters(tmpName.font, displayName);
+                tmpName.text = displayName;
+                tmpName.ForceMeshUpdate(true, true);
             }
             SetCardNameHorizontalScale(ContainsWideNameCharacter(cardName)
                 ? 1f : LatinCardNameHorizontalScale);
@@ -217,9 +219,13 @@ namespace CardOpen.Prototype
             return false;
         }
 
-        public void SetDisplayDescription(global::CardData data, string description, bool useEnglish = false)
+        public void SetDisplayDescription(global::CardData data, string description, bool useEnglish = false,
+            string trailingLine = null)
         {
             string displayDescription = BuildTaggedDescription(data, description, useEnglish);
+            if (!string.IsNullOrWhiteSpace(trailingLine))
+                displayDescription = string.IsNullOrWhiteSpace(displayDescription)
+                    ? trailingLine : displayDescription + "\n" + trailingLine;
             TextMeshPro[] textMeshes = GetComponentsInChildren<TextMeshPro>(true);
             for (int i = 0; i < textMeshes.Length; i++)
             {
@@ -235,8 +241,8 @@ namespace CardOpen.Prototype
         {
             string body = description ?? string.Empty;
             string natureEffect = useEnglish
-                ? "When another Nature card ability activates, chain this ability."
-                : "다른 자연 카드의 능력이 발동하면 이 능력 연쇄 발동";
+                ? "Chains when another Nature ability triggers."
+                : "다른 자연 능력 발동 시 연쇄 발동";
             bool hasNatureChainTarget = false;
             if (data != null && data.DeckAbilities != null)
             {
@@ -252,13 +258,13 @@ namespace CardOpen.Prototype
                 || (useEnglish
                     ? body.IndexOf("another Nature card", System.StringComparison.OrdinalIgnoreCase) >= 0
                         && body.IndexOf("chain", System.StringComparison.OrdinalIgnoreCase) >= 0
-                    : body.Contains("다른 자연 카드") && body.Contains("연쇄 발동"));
+                    : body.Contains("다른 자연") && body.Contains("연쇄 발동"));
             if (data != null && data.HasTag(global::CardTag.Nature)
                 && hasNatureChainTarget && !alreadyDescribesNatureTrigger)
                 body = string.IsNullOrWhiteSpace(body) ? natureEffect : body + "\n" + natureEffect;
             string stackEffect = useEnglish
-                ? "Whenever a card is drawn, give 1 stack to every Stack card in the deck."
-                : "카드를 뽑을 때 덱의 모든 스택 카드에 1스택 제공";
+                ? "All Stack cards: +1 stack on draw."
+                : "뽑을 때 모든 스택 카드 +1스택";
             bool alreadyDescribesStackEffect = useEnglish
                 ? body.IndexOf("every Stack card", System.StringComparison.OrdinalIgnoreCase) >= 0
                 : body.Contains("모든 스택 카드") && body.Contains("1스택");
@@ -273,8 +279,8 @@ namespace CardOpen.Prototype
             if (data != null && data.HasTag(global::CardTag.Mineral) && !alreadyDescribesMineralEffect)
                 body = string.IsNullOrWhiteSpace(body) ? mineralEffect : body + "\n" + mineralEffect;
             string miningEffect = useEnglish
-                ? "Mining odds improve with the number of Mining cards in the deck."
-                : "덱에 보유한 채굴 카드 수에 따라 광석 카드 채굴 확률 향상";
+                ? "Mining level increased"
+                : "채굴 등급 상승";
             if (data != null && data.HasTag(global::CardTag.Mining)
                 && body.IndexOf(useEnglish ? "Mining odds" : "채굴 확률",
                     System.StringComparison.OrdinalIgnoreCase) < 0)
@@ -510,7 +516,9 @@ namespace CardOpen.Prototype
             if (font == null) return TMP_Settings.defaultFontAsset;
             if (TmpFontAssets.TryGetValue(font, out TMP_FontAsset cached)) return cached;
 
-            TMP_FontAsset fontAsset = TMP_FontAsset.CreateFontAsset(font);
+            TMP_FontAsset fontAsset = TMP_FontAsset.CreateFontAsset(font, 64, 6,
+                UnityEngine.TextCore.LowLevel.GlyphRenderMode.SDFAA, 2048, 2048,
+                AtlasPopulationMode.Dynamic, true);
             if (fontAsset == null) fontAsset = TMP_Settings.defaultFontAsset;
             if (fontAsset != null)
             {
@@ -526,7 +534,94 @@ namespace CardOpen.Prototype
         {
             if (fontAsset == null || string.IsNullOrEmpty(value)
                 || fontAsset.atlasPopulationMode != AtlasPopulationMode.Dynamic) return;
-            fontAsset.TryAddCharacters(value, out _);
+            fontAsset.TryAddCharacters(value, out string missingCharacters);
+            if (!string.IsNullOrEmpty(missingCharacters))
+                Debug.LogWarning("Card font is missing characters: " + missingCharacters);
+        }
+
+        public static void PrewarmCardText(Font font, string cardNames, string descriptionCharacters)
+        {
+            PrepareTmpCharacters(GetTmpFontAsset(font), cardNames + descriptionCharacters);
+        }
+
+        private static void ApplyTmpOutline(TextMeshPro textMesh, bool enabled)
+        {
+            if (textMesh == null) return;
+            float width = enabled ? 0.28f : 0f;
+            textMesh.outlineColor = Color.black;
+            textMesh.outlineWidth = width;
+            Material material = textMesh.fontMaterial;
+            if (material == null) return;
+            if (enabled) material.EnableKeyword("OUTLINE_ON");
+            else material.DisableKeyword("OUTLINE_ON");
+            if (material.HasProperty("_OutlineColor"))
+                material.SetColor("_OutlineColor", Color.black);
+            if (material.HasProperty("_OutlineWidth"))
+                material.SetFloat("_OutlineWidth", width);
+            // Keep the original white glyph area and grow the legendary outline outward.
+            if (material.HasProperty("_FaceDilate"))
+                material.SetFloat("_FaceDilate", width);
+            // Rarity / hologram finishes render at 3040 / 3050. Keep all card text
+            // above those transparent layers so angled cards cannot lose glyphs.
+            material.renderQueue = 3100;
+            textMesh.fontMaterial = material;
+            textMesh.UpdateMeshPadding();
+        }
+
+        private void RegisterTmpRenderers(GameObject textObject, int sortingOrder)
+        {
+            MeshRenderer[] renderers = textObject.GetComponentsInChildren<MeshRenderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                MeshRenderer renderer = renderers[i];
+                renderer.sortingOrder = sortingOrder;
+                Material[] materials = renderer.sharedMaterials;
+                for (int materialIndex = 0; materialIndex < materials.Length; materialIndex++)
+                {
+                    Material material = materials[materialIndex];
+                    if (material != null) material.renderQueue = 3100;
+                }
+                faceLayerRenderers.Add(renderer);
+            }
+        }
+
+        private void CreateCardNameLayer(string value, Vector3 position, Font font, Color color,
+            int sortingOrder, bool addOutline)
+        {
+            if (font == null || string.IsNullOrWhiteSpace(value)) return;
+            TMP_FontAsset fontAsset = GetTmpFontAsset(font);
+            if (fontAsset == null) return;
+
+            GameObject textObject = new GameObject("Card Name TMP");
+            textObject.transform.SetParent(transform, false);
+            TextMeshPro textMesh = textObject.AddComponent<TextMeshPro>();
+            RectTransform rectTransform = textMesh.rectTransform;
+            rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            rectTransform.sizeDelta = new Vector2(CardNameMaximumWidth, CardNameMaximumHeight);
+            rectTransform.localPosition = position;
+            rectTransform.localRotation = Quaternion.identity;
+            rectTransform.localScale = Vector3.one;
+
+            textMesh.font = fontAsset;
+            PrepareTmpCharacters(fontAsset, value);
+            textMesh.text = value;
+            textMesh.color = color;
+            textMesh.fontStyle = FontStyles.Bold;
+            textMesh.fontWeight = FontWeight.Heavy;
+            textMesh.alignment = TextAlignmentOptions.Center;
+            textMesh.textWrappingMode = TextWrappingModes.Normal;
+            textMesh.overflowMode = TextOverflowModes.Truncate;
+            textMesh.enableAutoSizing = true;
+            textMesh.fontSize = 2.10f;
+            textMesh.fontSizeMax = 2.10f;
+            textMesh.fontSizeMin = 0.10f;
+            textMesh.margin = new Vector4(0.01f, 0.01f, 0.01f, 0.01f);
+            textMesh.richText = false;
+            textMesh.extraPadding = true;
+            ApplyTmpOutline(textMesh, addOutline);
+            textMesh.ForceMeshUpdate(true, true);
+
+            RegisterTmpRenderers(textObject, sortingOrder);
         }
 
         private void CreateDescriptionLayer(string value, Vector3 position, Font font, Color color, int sortingOrder, bool addOutline = false)
@@ -540,7 +635,7 @@ namespace CardOpen.Prototype
             TextMeshPro textMesh = textObject.AddComponent<TextMeshPro>();
             RectTransform rectTransform = textMesh.rectTransform;
             rectTransform.pivot = new Vector2(0.5f, 1f);
-            rectTransform.sizeDelta = new Vector2(1.50f, 0.98f);
+            rectTransform.sizeDelta = new Vector2(1.50f, 1.08f);
             rectTransform.localPosition = position;
             rectTransform.localRotation = Quaternion.identity;
             rectTransform.localScale = Vector3.one;
@@ -555,20 +650,16 @@ namespace CardOpen.Prototype
             textMesh.textWrappingMode = TextWrappingModes.Normal;
             textMesh.overflowMode = TextOverflowModes.Truncate;
             textMesh.enableAutoSizing = true;
-            textMesh.fontSize = 1.45f;
-            textMesh.fontSizeMax = 1.45f;
-            textMesh.fontSizeMin = 0.35f;
+            textMesh.fontSize = 1.95f;
+            textMesh.fontSizeMax = 1.95f;
+            textMesh.fontSizeMin = 0.15f;
             textMesh.margin = new Vector4(0.025f, 0.015f, 0.025f, 0.015f);
             textMesh.richText = false;
             textMesh.extraPadding = true;
-            textMesh.outlineWidth = 0f;
+            ApplyTmpOutline(textMesh, addOutline);
             textMesh.ForceMeshUpdate(true, true);
-            if (addOutline)
-                CreateDescriptionOutlineLayers(textObject, position, sortingOrder);
 
-            MeshRenderer renderer = textObject.GetComponent<MeshRenderer>();
-            renderer.sortingOrder = sortingOrder;
-            faceLayerRenderers.Add(renderer);
+            RegisterTmpRenderers(textObject, sortingOrder);
         }
         private void CreateDescriptionOutlineLayers(GameObject source, Vector3 position, int sortingOrder)
         {
