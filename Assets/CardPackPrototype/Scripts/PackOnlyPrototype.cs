@@ -104,6 +104,7 @@ namespace CardOpen.Prototype
         private const int FallbackCardsPerPack = 5;
         private const int PacksPerGoal = 3;
         private const int ScorePopupTrailCapacity = 5;
+        private const string EditorShareBaseUrl = "https://dojungke.github.io/CardOpen/";
         private const float ReferenceWidth = 1280f;
         private const float ReferenceHeight = 720f;
         private const float PortraitWidth = 720f;
@@ -329,6 +330,9 @@ namespace CardOpen.Prototype
         private string BuildSharedResultUrl()
         {
             string baseUrl = Application.absoluteURL;
+#if UNITY_EDITOR
+            if (string.IsNullOrWhiteSpace(baseUrl)) baseUrl = EditorShareBaseUrl;
+#endif
             if (string.IsNullOrWhiteSpace(baseUrl)) return string.Empty;
             int hashIndex = baseUrl.IndexOf('#');
             if (hashIndex >= 0) baseUrl = baseUrl.Substring(0, hashIndex);

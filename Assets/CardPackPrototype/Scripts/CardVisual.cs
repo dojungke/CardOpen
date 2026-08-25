@@ -263,10 +263,10 @@ namespace CardOpen.Prototype
                 && hasNatureChainTarget && !alreadyDescribesNatureTrigger)
                 body = string.IsNullOrWhiteSpace(body) ? natureEffect : body + "\n" + natureEffect;
             string stackEffect = useEnglish
-                ? "On draw, other Stack cards gain +1 stack."
-                : "뽑을 때 다른 모든 스택 카드 +1스택";
+                ? "On draw, Stack cards: +1 stack."
+                : "카드 뽑을 때 스택 카드 +1스택";
             bool alreadyDescribesStackEffect = useEnglish
-                ? body.IndexOf("Stack cards", System.StringComparison.OrdinalIgnoreCase) >= 0
+                ? body.IndexOf("Stack", System.StringComparison.OrdinalIgnoreCase) >= 0
                 : body.Contains("모든 스택 카드") && body.Contains("1스택");
             if (data != null && data.HasTag(global::CardTag.Stack) && !alreadyDescribesStackEffect)
                 body = string.IsNullOrWhiteSpace(body) ? stackEffect : body + "\n" + stackEffect;
@@ -650,8 +650,8 @@ namespace CardOpen.Prototype
             textMesh.textWrappingMode = TextWrappingModes.Normal;
             textMesh.overflowMode = TextOverflowModes.Truncate;
             textMesh.enableAutoSizing = true;
-            textMesh.fontSize = 1.95f;
-            textMesh.fontSizeMax = 1.95f;
+            textMesh.fontSize = 1.85f;
+            textMesh.fontSizeMax = 1.85f;
             textMesh.fontSizeMin = 0.15f;
             textMesh.margin = new Vector4(0.025f, 0.015f, 0.025f, 0.015f);
             textMesh.richText = false;
