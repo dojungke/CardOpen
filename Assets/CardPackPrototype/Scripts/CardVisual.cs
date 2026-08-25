@@ -263,10 +263,10 @@ namespace CardOpen.Prototype
                 && hasNatureChainTarget && !alreadyDescribesNatureTrigger)
                 body = string.IsNullOrWhiteSpace(body) ? natureEffect : body + "\n" + natureEffect;
             string stackEffect = useEnglish
-                ? "All Stack cards: +1 stack on draw."
-                : "뽑을 때 모든 스택 카드 +1스택";
+                ? "On draw, other Stack cards gain +1 stack."
+                : "뽑을 때 다른 모든 스택 카드 +1스택";
             bool alreadyDescribesStackEffect = useEnglish
-                ? body.IndexOf("every Stack card", System.StringComparison.OrdinalIgnoreCase) >= 0
+                ? body.IndexOf("Stack cards", System.StringComparison.OrdinalIgnoreCase) >= 0
                 : body.Contains("모든 스택 카드") && body.Contains("1스택");
             if (data != null && data.HasTag(global::CardTag.Stack) && !alreadyDescribesStackEffect)
                 body = string.IsNullOrWhiteSpace(body) ? stackEffect : body + "\n" + stackEffect;

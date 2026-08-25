@@ -14,27 +14,46 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CardData
   Name: "\uC720\uC131\uC6B0"
   Description: "\uCE74\uB4DC \uC22B\uC790\uB9CC\uD07C \uC2A4\uD0DD \uD68D\uB4DD\n\uC2A4\uD0DD\uC774
-    12 \uC774\uC0C1\uC774\uBA74 12\uAC1C\uB97C \uC18C\uBAA8\uD574 \uCE74\uB4DC\uD329
+    16 \uC774\uC0C1\uC774\uBA74 16\uAC1C\uB97C \uC18C\uBAA8\uD574 \uCE74\uB4DC\uD329
     \uB9E8 \uB4A4\uC5D0 \uC720\uC131 1\uC7A5 \uC0DD\uC131\n\uD329\uB2F9 \uCD5C\uB300
     7\uD68C \uBC1C\uB3D9"
   EnglishName: Meteor Shower
   EnglishDescription: 'Gain stacks equal to the card number.
 
-    At 12 or more stacks,
-    spend 12 to add 1 Meteor to the end of the pack.
+    At 16 or more stacks,
+    spend 16 to add 1 Meteor to the end of the pack.
 
     Triggers up to 7 times
     per pack.'
   Rare: 3
   Image: {fileID: 2800000, guid: 50ed23c10841b164ca5a20ddf7015817, type: 3}
   FitBackgroundImageToWidth: 1
-  Tags:
-  - 2
-  - 8
+  Tags: 0200000008000000
   CanEquipMagic: 0
   CanEquipWeapon: 0
   MaxMergeCount: 1
   UnlimitedMergeCount: 0
+  ScorePopupAggregation: 0
+  IgnoreExternalStackGrants: 0
+  MiningChanceByLevel:
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  MiningChanceChangePerLevelAboveTen: 0
+  FusionRecipeId: 
+  FusionRequiredCopies: 1
+  FusionResult: {fileID: 0}
+  UseAsFusionAppearanceSource: 0
+  ClearInheritedRelicsOnLoad: 0
+  ShortStatusName: 
+  EnglishShortStatusName: 
   DeckAbilities:
   - Trigger: 6
     Effect: 15
@@ -47,7 +66,7 @@ MonoBehaviour:
     ApplicableNumbers: 
     ApplicableColors: 
     ResetAccumulationAfterPack: 0
-    StackThreshold: 12
+    StackThreshold: 16
     DurationDrawCount: 0
     GeneratedCard: {fileID: 11400000, guid: 10f7747ebb5324b4baa5ce3032ada953, type: 2}
     TransformedCard: {fileID: 0}

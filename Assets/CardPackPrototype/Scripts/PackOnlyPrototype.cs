@@ -108,7 +108,7 @@ namespace CardOpen.Prototype
         private const float ReferenceHeight = 720f;
         private const float PortraitWidth = 720f;
         private const float PortraitHeight = 1280f;
-        private static readonly int[] GoalScores = { 3000, 10000, 20000, 30000, 50000 };
+        private static readonly int[] GoalScores = { 3000, 10000, 25000, 40000, 60000 };
         private const float RevealedCardScale = 1.5f;
         private static readonly Rect PackTearZone = new Rect(410f, 0f, 460f, 380f);
         private static readonly Rect CardGestureZone = new Rect(500f, 105f, 340f, 505f);
@@ -2298,7 +2298,6 @@ namespace CardOpen.Prototype
 
         private void PrepareStackBonusTriggers(StoredCard revealedCard)
         {
-            int sharedStackGain = GetSharedStackTagGainPerDraw();
             for (int i = 0; i < GetAbilityOwnerCount(); i++)
             {
                 StoredCard owner = GetAbilityOwnerAt(i);
@@ -2306,6 +2305,7 @@ namespace CardOpen.Prototype
                 owner.TriggeredStackCountsThisDraw.Clear();
                 if (owner.Data == null || owner.Data.DeckAbilities == null) continue;
                 int effectiveCopies = GetEffectiveDeckCopyCount(owner);
+                int sharedStackGain = GetSharedStackTagGainPerDraw(owner);
                 for (int j = 0; j < owner.Data.DeckAbilities.Count; j++)
                 {
                     global::CardDeckAbility ability = owner.Data.DeckAbilities[j];
@@ -2393,7 +2393,7 @@ namespace CardOpen.Prototype
             if (ability == null || ability.StackThreshold <= 0) return 0;
             int gainedStacks = Mathf.Max(0, revealedCard.Number * ability.NumberMultiplier);
             if (owner.Data.HasTag(global::CardTag.Stack))
-                gainedStacks += GetSharedStackTagGainPerDraw();
+                gainedStacks += GetSharedStackTagGainPerDraw(owner);
             int triggerCount = 0;
             int effectiveCopies = GetEffectiveDeckCopyCount(owner);
             for (int copy = 0; copy < effectiveCopies; copy++)
@@ -2482,7 +2482,7 @@ namespace CardOpen.Prototype
                 }
             }
         }
-        private int GetSharedStackTagGainPerDraw()
+        private int GetSharedStackTagGainPerDraw(StoredCard excludedOwner)
         {
             int stackCardCopies = 0;
             for (int i = 0; i < GetAbilityOwnerCount(); i++)
@@ -2492,7 +2492,13 @@ namespace CardOpen.Prototype
                     || !owner.Data.HasTag(global::CardTag.Stack)) continue;
                 stackCardCopies += GetEffectiveDeckCopyCount(owner);
             }
-            return stackCardCopies;
+            if (excludedOwner != null && excludedOwner.Data != null
+                && excludedOwner.Data.HasTag(global::CardTag.Stack))
+            {
+                stackCardCopies -= GetEffectiveDeckCopyCount(excludedOwner);
+            }
+
+            return Mathf.Max(0, stackCardCopies);
         }
 
         private void AccumulatePerPackEffects(StoredCard revealedCard)
@@ -6064,9 +6070,9 @@ if (canAbandonChallenge
                         1050f + PortraitExtraHeight - portraitStatusExtraHeight,
                         100f, 48f + portraitStatusExtraHeight)
                     : (resultScreen
-                        ? new Rect(430f + slot * 85f, 680f - landscapeStatusExtraHeight,
+                        ? new Rect(430f + slot * 85f, 660f - landscapeStatusExtraHeight,
                             80f, 40f + landscapeStatusExtraHeight)
-                        : new Rect(14f + slot * 74.25f, 674f - landscapeStatusExtraHeight,
+                        : new Rect(14f + slot * 74.25f, 654f - landscapeStatusExtraHeight,
                             80f, 40f + landscapeStatusExtraHeight));
                 DrawStatusLabelWithShadow(statusRect,
                     progressText, deckStatusStyle, new Color(0.55f, 0.95f, 1f));
